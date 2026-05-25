@@ -86,7 +86,11 @@ class AppVehiclePositionsService(
                 override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                     if (type == "heartbeat") return
                     runCatching { parsePositionsEventData(data) }
-                        .onSuccess { trySend(Result.success(it)) }
+                        .onSuccess { positions ->
+                            if (positions.isNotEmpty()) {
+                                trySend(Result.success(positions))
+                            }
+                        }
                         .onFailure { trySend(Result.failure(it)) }
                 }
 
@@ -143,10 +147,13 @@ class AppVehiclePositionsService(
             val lon = location.longitude ?: return@mapNotNull null
             val lineRef = journey.lineRef?.value ?: return@mapNotNull null
             val vehicleId = activity.vehicleMonitoringRef?.value ?: return@mapNotNull null
+            val lineName = extractLineNameFromRef(lineRef).trim()
+            if (lineName.isBlank()) return@mapNotNull null
+            if (!isValidLineName(lineName)) return@mapNotNull null
 
             SimpleVehiclePosition(
                 vehicleId = vehicleId,
-                lineName = extractLineNameFromRef(lineRef),
+                lineName = lineName,
                 latitude = lat,
                 longitude = lon,
                 bearing = journey.bearing,
@@ -165,6 +172,13 @@ class AppVehiclePositionsService(
             if (colonIndex > 0) return afterDoubleDots.take(colonIndex)
             return afterDoubleDots
         }
-        return lineRef
+        return ""
+    }
+
+    private fun isValidLineName(lineName: String): Boolean {
+        val upper = lineName.trim().uppercase()
+        if (upper.isBlank()) return false
+        if (rules.strongLines.any { it.equals(upper, ignoreCase = true) }) return true
+        return rules.lineNameRegexes.any { regex -> upper.matches(Regex(regex)) }
     }
 }
