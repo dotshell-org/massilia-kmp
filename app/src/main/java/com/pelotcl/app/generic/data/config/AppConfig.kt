@@ -27,7 +27,8 @@ data class TransportConfigData(
     val primaryColor: String,
     val secondaryColor: String,
     val trafficAlertsBaseUrl: String,
-    val vehiclePositionsStreamUrl: String
+    val vehiclePositionsStreamUrl: String,
+    val vehiclePositionsLineRefPattern: String = "(?<=::)[^:]+"
 )
 
 data class IntRangeData(
@@ -42,14 +43,27 @@ data class ThemeData(
     val errorColor: String,
     val successColor: String,
     val warningColor: String,
-    val disruptionColor: String
+    val disruptionColor: String,
+    val linkColor: String = "#4285F4"
 )
 
 data class AboutData(
     val screenTitle: String,
     val sections: List<AboutSectionData>,
     val legalSections: List<AboutSectionData>,
-    val contact: ContactData
+    val contact: ContactData,
+    val labels: AboutLabelsData = AboutLabelsData()
+)
+
+data class AboutLabelsData(
+    val creditsTitle: String = "Crédits",
+    val legalTitle: String = "Mentions légales / CGU",
+    val contactTitle: String = "Contact",
+    val backContentDescription: String = "Retour",
+    val openContentDescription: String = "Ouvrir",
+    val emailLabel: String = "Email",
+    val websiteLabel: String = "Site web",
+    val socialMediaSectionTitle: String = "Réseaux sociaux"
 )
 
 data class AboutSectionData(
@@ -79,13 +93,30 @@ data class RulesData(
     val strongLines: List<String>,
     val strongLineRegexes: List<String> = emptyList(),
     val lineNameRegexes: List<String>,
-    val transportTypes: List<TransportTypeData> = emptyList()
+    val transportTypes: List<TransportTypeData> = emptyList(),
+    val aliases: List<LineAliasData> = emptyList(),
+    val excludedLines: List<String> = emptyList(),
+    val vehicleMarkers: List<VehicleMarkerRuleData> = emptyList(),
+    val defaultVehicleMarker: String = "BUS"
 )
 
 data class TransportTypeData(
     val name: String,
     val regex: String,
     val icon: String? = null
+)
+
+data class LineAliasData(
+    val from: String,
+    val to: String,
+    val matchType: String = "exact",
+    val equivalents: List<String> = emptyList(),
+    val displayAs: String? = null
+)
+
+data class VehicleMarkerRuleData(
+    val prefix: String,
+    val marker: String
 )
 
 data class MapStylesData(

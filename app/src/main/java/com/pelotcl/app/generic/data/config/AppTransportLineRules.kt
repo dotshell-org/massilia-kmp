@@ -4,6 +4,30 @@ import com.pelotcl.app.generic.data.models.ui.VehicleMarkerType
 import com.pelotcl.app.generic.data.network.transport.TransportLineRules
 
 class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
+
+    private val lineNamePatterns: List<Regex> = data.lineNameRegexes.map(::Regex)
+    private val strongLinePatterns: List<Regex> = data.strongLineRegexes.map(::Regex)
+    private val transportTypePatterns: List<Pair<TransportTypeData, Regex>> =
+        data.transportTypes.map { it to Regex(it.regex) }
+    private val strongLineSet: Set<String> =
+        data.strongLines.mapTo(HashSet(data.strongLines.size)) { it.uppercase() }
+
+    private val exactAliases: Map<String, LineAliasData> =
+        data.aliases.filter { it.matchType.equals("exact", ignoreCase = true) }
+            .associateBy { it.from.uppercase() }
+    private val containsAliases: List<LineAliasData> =
+        data.aliases.filter { it.matchType.equals("contains", ignoreCase = true) }
+    private val displayAliasByCanonical: Map<String, String> =
+        data.aliases.mapNotNull { alias ->
+            alias.displayAs?.let { alias.to.uppercase() to it }
+        }.toMap()
+    private val excludedLinesSet: Set<String> =
+        data.excludedLines.mapTo(HashSet(data.excludedLines.size)) { it.uppercase() }
+    private val vehicleMarkerRules: List<VehicleMarkerRuleData> =
+        data.vehicleMarkers.sortedByDescending { it.prefix.length }
+    private val defaultVehicleMarker: VehicleMarkerType =
+        parseMarker(data.defaultVehicleMarker)
+
     override fun normalizeAlertToken(raw: String): String {
         val token = raw.uppercase()
             .replace(" ", "")
@@ -15,56 +39,42 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
             .replace("METRO", "")
             .trim()
 
-        return if (token.contains("RHONEXPRESS")) "RX" else token
+        return applyContainsAlias(token) ?: token
     }
 
     override fun isLikelyLineToken(token: String): Boolean {
         if (token.isBlank()) return false
         if (isStrongLine(token)) return true
-        return data.lineNameRegexes.any { regex ->
-            token.matches(Regex(regex))
-        }
+        return lineNamePatterns.any { it.matches(token) }
     }
 
     override fun canonicalRouteName(raw: String): String {
         val token = raw.trim().uppercase()
-        return when (token) {
-            "NAVI1" -> "NAV1"
-            else -> token
-        }
+        return exactAliases[token]?.to ?: token
     }
 
     override fun equivalentRouteNames(raw: String): List<String> {
         val token = raw.trim().uppercase()
-        return when (token) {
-            "NAVI1", "NAV1" -> listOf("NAVI1", "NAV1")
-            else -> listOf(token)
-        }
+        val alias = exactAliases[token]
+        if (alias != null && alias.equivalents.isNotEmpty()) return alias.equivalents
+        return listOf(token)
     }
 
     override fun normalizeForComparison(raw: String): String {
         val token = raw.trim().uppercase()
-        return if (token.contains("RHONEXPRESS")) {
-            "RX"
-        } else {
-            canonicalRouteName(token)
-        }
+        return applyContainsAlias(token) ?: canonicalRouteName(token)
     }
 
     override fun isStrongLine(lineName: String): Boolean {
         val upperName = lineName.uppercase()
-        if (data.strongLines.any { upperName == it.uppercase() }) return true
-        return data.strongLineRegexes.any { regex ->
-            upperName.matches(Regex(regex))
-        }
+        if (strongLineSet.contains(upperName)) return true
+        return strongLinePatterns.any { it.matches(upperName) }
     }
 
     override fun getTransportType(lineName: String): String {
         val upperName = lineName.uppercase()
-        for (type in data.transportTypes) {
-            if (upperName.matches(Regex(type.regex))) {
-                return type.name
-            }
+        for ((type, regex) in transportTypePatterns) {
+            if (regex.matches(upperName)) return type.name
         }
         return "Bus" // Default
     }
@@ -72,10 +82,8 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
     override fun getModeIcon(lineName: String): String? {
         if (isStrongLine(lineName)) return null
         val upperName = lineName.uppercase()
-        for (type in data.transportTypes) {
-            if (upperName.matches(Regex(type.regex))) {
-                return type.icon
-            }
+        for ((type, regex) in transportTypePatterns) {
+            if (regex.matches(upperName)) return type.icon
         }
         return "mode_bus"
     }
@@ -95,15 +103,13 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
 
     override fun getVehicleMarkerType(lineName: String): VehicleMarkerType {
         val upperName = lineName.uppercase()
-        return when {
-            upperName.startsWith("TB") -> VehicleMarkerType.BUS
-            upperName.startsWith("T") -> VehicleMarkerType.TRAM
-            else -> VehicleMarkerType.BUS
-        }
+        val matched = vehicleMarkerRules.firstOrNull { upperName.startsWith(it.prefix.uppercase()) }
+        return matched?.let { parseMarker(it.marker) } ?: defaultVehicleMarker
     }
 
     override fun normalizeLineNameForUi(lineName: String): String {
-        return if (canonicalRouteName(lineName) == "NAV1") "NAVI1" else lineName
+        val canonical = canonicalRouteName(lineName).uppercase()
+        return displayAliasByCanonical[canonical] ?: lineName
     }
 
     override fun sortLines(lines: List<String>): List<String> {
@@ -134,8 +140,7 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
                 if (num != null) return Key(3000, number = num, raw = up)
             }
 
-            val regex = Regex("^([A-Z]+)(\\d+)([A-Z]*)$")
-            val match = regex.matchEntire(up)
+            val match = SORT_PREFIX_NUMBER_SUFFIX.matchEntire(up)
             if (match != null) {
                 val prefix = match.groupValues[1]
                 val num = match.groupValues[2].toIntOrNull() ?: Int.MAX_VALUE
@@ -151,7 +156,7 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
         }
 
         return lines
-            .filter { !it.equals("T36", ignoreCase = true) }
+            .filter { it.uppercase() !in excludedLinesSet }
             .sortedWith(Comparator { a, b ->
                 val ka = keyFor(a)
                 val kb = keyFor(b)
@@ -162,5 +167,20 @@ class AppTransportLineRules(private val data: RulesData) : TransportLineRules {
                     else -> ka.raw.compareTo(kb.raw)
                 }
             })
+    }
+
+    private fun applyContainsAlias(token: String): String? {
+        for (alias in containsAliases) {
+            if (token.contains(alias.from.uppercase())) return alias.to
+        }
+        return null
+    }
+
+    private fun parseMarker(name: String): VehicleMarkerType = runCatching {
+        VehicleMarkerType.valueOf(name.uppercase())
+    }.getOrDefault(VehicleMarkerType.BUS)
+
+    companion object {
+        private val SORT_PREFIX_NUMBER_SUFFIX = Regex("^([A-Z]+)(\\d+)([A-Z]*)$")
     }
 }

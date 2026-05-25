@@ -28,11 +28,12 @@ import kotlinx.serialization.json.Json
  */
 class TransportCacheImpl(context: Context) : TransportCache {
 
-    private data class LineCacheSlot(
+    private class LineCacheSlot(
         val fileName: String,
         val timestampKey: String,
-        var memory: List<Feature>? = null,
-        var timestamp: Long = 0L
+        @Volatile var memory: List<Feature>? = null,
+        @Volatile var timestamp: Long = 0L,
+        val mutex: Mutex = Mutex()
     )
 
     private val cacheConfig = AppConfigLoader.loadConfig(context).cache
@@ -45,7 +46,7 @@ class TransportCacheImpl(context: Context) : TransportCache {
     }
 
     private val prefs = context.getSharedPreferences("transport_cache_meta", Context.MODE_PRIVATE)
-    private val mutex = Mutex()
+    private val stopsMutex = Mutex()
     private val cacheDir = File(context.cacheDir, "transport_data").also { it.mkdirs() }
 
     private val metroSlot = LineCacheSlot(FILE_METRO_LINES, KEY_METRO_LINES_TIMESTAMP)
@@ -198,33 +199,33 @@ class TransportCacheImpl(context: Context) : TransportCache {
     }
 
     override suspend fun saveMetroLines(lines: List<Feature>) {
-        mutex.withLock { saveLineCache(metroSlot, lines) }
+        metroSlot.mutex.withLock { saveLineCache(metroSlot, lines) }
     }
 
-    override suspend fun getMetroLines(): List<Feature>? = mutex.withLock {
+    override suspend fun getMetroLines(): List<Feature>? = metroSlot.mutex.withLock {
         loadLineCache(metroSlot)
     }
 
     override suspend fun saveTramLines(lines: List<Feature>) {
-        mutex.withLock { saveLineCache(tramSlot, lines) }
+        tramSlot.mutex.withLock { saveLineCache(tramSlot, lines) }
     }
 
-    override suspend fun getTramLines(): List<Feature>? = mutex.withLock {
+    override suspend fun getTramLines(): List<Feature>? = tramSlot.mutex.withLock {
         loadLineCache(tramSlot)
     }
 
     override suspend fun saveBusLines(lines: List<Feature>) {
         if (!cacheConfig.cacheBusLines) return
-        mutex.withLock { saveLineCache(busSlot, lines) }
+        busSlot.mutex.withLock { saveLineCache(busSlot, lines) }
     }
 
-    override suspend fun getBusLines(): List<Feature>? = mutex.withLock {
+    override suspend fun getBusLines(): List<Feature>? = busSlot.mutex.withLock {
         if (!cacheConfig.cacheBusLines) return@withLock null
         loadLineCache(busSlot)
     }
 
     override suspend fun saveStops(stops: List<StopFeature>) {
-        mutex.withLock {
+        stopsMutex.withLock {
             stopsCache = stops
             stopsTimestamp = System.currentTimeMillis()
 
@@ -233,7 +234,7 @@ class TransportCacheImpl(context: Context) : TransportCache {
         }
     }
 
-    override suspend fun getStops(): List<StopFeature>? = mutex.withLock {
+    override suspend fun getStops(): List<StopFeature>? = stopsMutex.withLock {
         if (stopsCache != null && isTimestampValid(stopsTimestamp)) {
             return@withLock stopsCache
         }
@@ -260,6 +261,6 @@ class TransportCacheImpl(context: Context) : TransportCache {
     }
 
     private suspend fun getLineFromDisk(slot: LineCacheSlot) {
-        mutex.withLock { loadLineCache(slot) }
+        slot.mutex.withLock { loadLineCache(slot) }
     }
 }

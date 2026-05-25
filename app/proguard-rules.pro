@@ -86,6 +86,12 @@
 -keep class com.pelotcl.app.generic.data.models.** { *; }
 -keep class com.pelotcl.app.specific.data.model.** { *; }
 
+# config.yml is parsed via SnakeYAML → Gson reflection on AppConfig + nested *Data classes.
+# Without these rules R8 full-mode strips the no-arg constructor or class-merges them, causing
+# "Abstract classes can't be instantiated" at runtime.
+-keep class com.pelotcl.app.generic.data.config.AppConfig { *; }
+-keep class com.pelotcl.app.generic.data.config.**Data { *; }
+
 # Prevent proguard from stripping interface information from TypeAdapter, TypeAdapterFactory,
 # JsonSerializer, JsonDeserializer instances (so they can be used in @JsonAdapter)
 -keep class * extends com.google.gson.TypeAdapter

@@ -33,10 +33,14 @@ import androidx.compose.ui.unit.sp
 import com.pelotcl.app.generic.data.config.AboutData
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
+import com.pelotcl.app.generic.ui.theme.TransportThemeProvider
 
 class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
 
     override val screenTitle: String = data.screenTitle
+
+    private val linkColor: Color
+        get() = TransportThemeProvider.getTheme().linkColor
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -47,27 +51,7 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         onContactClick: () -> Unit
     ) {
         Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = screenTitle,
-                            color = SecondaryColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Retour",
-                                tint = SecondaryColor
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryColor)
-                )
-            },
+            topBar = { AboutTopBar(screenTitle, onBackClick) },
             containerColor = PrimaryColor
         ) { paddingValues ->
             Column(
@@ -76,9 +60,9 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
                     .padding(paddingValues)
                     .padding(16.dp)
             ) {
-                AboutMenuItem("Crédits", onCreditsClick)
-                AboutMenuItem("Mentions légales / CGU", onLegalClick)
-                AboutMenuItem("Contact", onContactClick)
+                AboutMenuItem(data.labels.creditsTitle, onCreditsClick)
+                AboutMenuItem(data.labels.legalTitle, onLegalClick)
+                AboutMenuItem(data.labels.contactTitle, onContactClick)
             }
         }
     }
@@ -94,7 +78,11 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         ) {
             Text(text = text, color = SecondaryColor, fontSize = 18.sp)
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, "Ouvrir", tint = SecondaryColor)
+            Icon(
+                Icons.AutoMirrored.Filled.OpenInNew,
+                data.labels.openContentDescription,
+                tint = SecondaryColor
+            )
         }
     }
 
@@ -108,27 +96,7 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         val sections = getCreditSections()
 
         Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Crédits",
-                            color = SecondaryColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Retour",
-                                tint = SecondaryColor
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryColor)
-                )
-            },
+            topBar = { AboutTopBar(data.labels.creditsTitle, onBackClick) },
             containerColor = PrimaryColor
         ) { paddingValues ->
             val uriHandler = LocalUriHandler.current
@@ -169,18 +137,19 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
 
     @Composable
     private fun ClickableLink(label: String, url: String, uriHandler: UriHandler) {
+        val color = linkColor
         Row(
             modifier = Modifier
                 .clickable { uriHandler.openUri(url) }
                 .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, color = Color(0xFF4285F4), fontSize = 14.sp)
+            Text(text = label, color = color, fontSize = 14.sp)
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 Icons.AutoMirrored.Filled.OpenInNew,
-                "Ouvrir",
-                tint = Color(0xFF4285F4),
+                data.labels.openContentDescription,
+                tint = color,
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -192,27 +161,7 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         val sections = getLegalSections()
 
         Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Mentions légales / CGU",
-                            color = SecondaryColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Retour",
-                                tint = SecondaryColor
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryColor)
-                )
-            },
+            topBar = { AboutTopBar(data.labels.legalTitle, onBackClick) },
             containerColor = PrimaryColor
         ) { paddingValues ->
             Column(
@@ -250,27 +199,7 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         val contactInfo = getContactInfo()
 
         Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Contact",
-                            color = SecondaryColor,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Retour",
-                                tint = SecondaryColor
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryColor)
-                )
-            },
+            topBar = { AboutTopBar(data.labels.contactTitle, onBackClick) },
             containerColor = PrimaryColor
         ) { paddingValues ->
             Column(
@@ -280,16 +209,16 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
                     .padding(16.dp)
             ) {
                 contactInfo.email?.let { email ->
-                    ContactItem("Email", email, "mailto:$email")
+                    ContactItem(data.labels.emailLabel, email, "mailto:$email")
                 }
 
                 contactInfo.website?.let { website ->
-                    ContactItem("Site web", website, website)
+                    ContactItem(data.labels.websiteLabel, website, website)
                 }
 
                 if (contactInfo.socialMedia.isNotEmpty()) {
                     Text(
-                        text = "Réseaux sociaux",
+                        text = data.labels.socialMediaSectionTitle,
                         color = SecondaryColor,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -304,9 +233,34 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun AboutTopBar(title: String, onBackClick: () -> Unit) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = title,
+                    color = SecondaryColor,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        data.labels.backContentDescription,
+                        tint = SecondaryColor
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimaryColor)
+        )
+    }
+
     @Composable
     private fun ContactItem(label: String, value: String, url: String) {
         val uriHandler = LocalUriHandler.current
+        val color = linkColor
 
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
             Text(text = label, color = SecondaryColor, fontSize = 14.sp)
@@ -318,12 +272,16 @@ class GenericAboutScreen(private val data: AboutData) : AboutScreenContract {
             ) {
                 Text(
                     text = value,
-                    color = Color(0xFF4285F4),
+                    color = color,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Filled.OpenInNew, "Ouvrir", tint = Color(0xFF4285F4))
+                Icon(
+                    Icons.AutoMirrored.Filled.OpenInNew,
+                    data.labels.openContentDescription,
+                    tint = color
+                )
             }
         }
     }

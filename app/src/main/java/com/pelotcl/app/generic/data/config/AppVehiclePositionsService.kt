@@ -26,16 +26,24 @@ class AppVehiclePositionsService(
     private val config: TransportConfigData,
     private val rules: RulesData
 ) : VehiclePositionsService {
-    
+
     override fun getVehiclePositionsStreamUrl(): String = config.vehiclePositionsStreamUrl
-    
+
     private val gson = GsonProvider.instance
-    private val streamClient = OkHttpClient.Builder()
-        .addInterceptor(DotshellRequestLogger.interceptor("sse"))
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val lineRefPattern: Regex? = runCatching {
+        Regex(config.vehiclePositionsLineRefPattern)
+    }.getOrNull()
+
+    companion object {
+        private val streamClient: OkHttpClient by lazy {
+            OkHttpClient.Builder()
+                .addInterceptor(DotshellRequestLogger.interceptor("sse"))
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(0, TimeUnit.SECONDS)
+                .writeTimeout(15, TimeUnit.SECONDS)
+                .build()
+        }
+    }
     
     override fun streamAllVehiclePositions(): Flow<Result<List<SimpleVehiclePosition>>> {
         return createVehiclePositionsFlow()
@@ -149,6 +157,7 @@ class AppVehiclePositionsService(
     }
     
     private fun extractLineNameFromRef(lineRef: String): String {
+        lineRefPattern?.find(lineRef)?.value?.let { return it }
         val parts = lineRef.split("::")
         if (parts.size >= 2) {
             val afterDoubleDots = parts[1]

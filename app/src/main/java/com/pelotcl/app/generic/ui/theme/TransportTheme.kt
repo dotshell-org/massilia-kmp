@@ -45,6 +45,11 @@ interface TransportTheme {
     val disruptionColor: Color
 
     /**
+     * Color used for clickable links (defaults to #4285F4 when no config provided)
+     */
+    val linkColor: Color
+
+    /**
      * Applies the theme to the composition
      */
     @Composable

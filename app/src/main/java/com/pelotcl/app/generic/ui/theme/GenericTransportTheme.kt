@@ -7,14 +7,38 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.pelotcl.app.generic.data.config.ThemeData
 
+private val BaseTypography = Typography()
+
+private val AppTypography = Typography(
+    displayLarge = BaseTypography.displayLarge.copy(color = PrimaryColor),
+    displayMedium = BaseTypography.displayMedium.copy(color = PrimaryColor),
+    displaySmall = BaseTypography.displaySmall.copy(color = PrimaryColor),
+    headlineLarge = BaseTypography.headlineLarge.copy(color = PrimaryColor),
+    headlineMedium = BaseTypography.headlineMedium.copy(color = PrimaryColor),
+    headlineSmall = BaseTypography.headlineSmall.copy(color = PrimaryColor),
+    titleLarge = BaseTypography.titleLarge.copy(color = PrimaryColor),
+    titleMedium = BaseTypography.titleMedium.copy(color = PrimaryColor),
+    titleSmall = BaseTypography.titleSmall.copy(color = PrimaryColor),
+    bodyLarge = BaseTypography.bodyLarge.copy(color = PrimaryColor),
+    bodyMedium = BaseTypography.bodyMedium.copy(color = PrimaryColor),
+    bodySmall = BaseTypography.bodySmall.copy(color = PrimaryColor),
+    labelLarge = BaseTypography.labelLarge.copy(color = PrimaryColor),
+    labelMedium = BaseTypography.labelMedium.copy(color = PrimaryColor),
+    labelSmall = BaseTypography.labelSmall.copy(color = PrimaryColor)
+)
+
 class GenericTransportTheme(private val data: ThemeData? = null) : TransportTheme {
-    override val metroLineColor: Color = Color(android.graphics.Color.parseColor(data?.metroLineColor ?: "#FF0000"))
-    override val tramLineColor: Color = Color(android.graphics.Color.parseColor(data?.tramLineColor ?: "#00FF00"))
-    override val busLineColor: Color = Color(android.graphics.Color.parseColor(data?.busLineColor ?: "#0000FF"))
-    override val errorColor: Color = Color(android.graphics.Color.parseColor(data?.errorColor ?: "#FF0000"))
-    override val successColor: Color = Color(android.graphics.Color.parseColor(data?.successColor ?: "#00FF00"))
-    override val warningColor: Color = Color(android.graphics.Color.parseColor(data?.warningColor ?: "#FFFF00"))
-    override val disruptionColor: Color = Color(android.graphics.Color.parseColor(data?.disruptionColor ?: "#FFA500"))
+    override val metroLineColor: Color = parseColor(data?.metroLineColor, "#FF0000")
+    override val tramLineColor: Color = parseColor(data?.tramLineColor, "#00FF00")
+    override val busLineColor: Color = parseColor(data?.busLineColor, "#0000FF")
+    override val errorColor: Color = parseColor(data?.errorColor, "#FF0000")
+    override val successColor: Color = parseColor(data?.successColor, "#00FF00")
+    override val warningColor: Color = parseColor(data?.warningColor, "#FFFF00")
+    override val disruptionColor: Color = parseColor(data?.disruptionColor, "#FFA500")
+    override val linkColor: Color = parseColor(data?.linkColor, "#4285F4")
+
+    private fun parseColor(value: String?, fallback: String): Color =
+        Color(android.graphics.Color.parseColor(value ?: fallback))
 
     @Composable
     override fun ApplyTheme(content: @Composable () -> Unit) {
@@ -32,23 +56,7 @@ class GenericTransportTheme(private val data: ThemeData? = null) : TransportThem
                 error = errorColor,
                 onError = SecondaryColor
             ),
-            typography = Typography(
-                displayLarge = Typography().displayLarge.copy(color = PrimaryColor),
-                displayMedium = Typography().displayMedium.copy(color = PrimaryColor),
-                displaySmall = Typography().displaySmall.copy(color = PrimaryColor),
-                headlineLarge = Typography().headlineLarge.copy(color = PrimaryColor),
-                headlineMedium = Typography().headlineMedium.copy(color = PrimaryColor),
-                headlineSmall = Typography().headlineSmall.copy(color = PrimaryColor),
-                titleLarge = Typography().titleLarge.copy(color = PrimaryColor),
-                titleMedium = Typography().titleMedium.copy(color = PrimaryColor),
-                titleSmall = Typography().titleSmall.copy(color = PrimaryColor),
-                bodyLarge = Typography().bodyLarge.copy(color = PrimaryColor),
-                bodyMedium = Typography().bodyMedium.copy(color = PrimaryColor),
-                bodySmall = Typography().bodySmall.copy(color = PrimaryColor),
-                labelLarge = Typography().labelLarge.copy(color = PrimaryColor),
-                labelMedium = Typography().labelMedium.copy(color = PrimaryColor),
-                labelSmall = Typography().labelSmall.copy(color = PrimaryColor)
-            ),
+            typography = AppTypography,
             content = content
         )
     }

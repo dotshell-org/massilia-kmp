@@ -2,38 +2,35 @@ package com.pelotcl.app.generic.utils.date
 
 import java.time.LocalDate
 import java.time.Month
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Implementation of PublicHolidayStrategy for France
  */
 class FrenchPublicHolidayStrategy : PublicHolidayStrategy {
 
+    private val holidaysByYear = ConcurrentHashMap<Int, Set<LocalDate>>()
+
     override fun isPublicHoliday(date: LocalDate): Boolean {
-        val year = date.year
+        val holidays = holidaysByYear.getOrPut(date.year) { computeHolidays(date.year) }
+        return date in holidays
+    }
 
-        // Fixed holidays
-        val fixedHolidays = listOf(
-            LocalDate.of(year, Month.JANUARY, 1),        // New Year's Day
-            LocalDate.of(year, Month.MAY, 1),            // Labour Day
-            LocalDate.of(year, Month.MAY, 8),            // Victory in Europe Day
-            LocalDate.of(year, Month.JULY, 14),          // Bastille Day
-            LocalDate.of(year, Month.AUGUST, 15),        // Assumption of Mary
-            LocalDate.of(year, Month.NOVEMBER, 1),       // All Saints' Day
-            LocalDate.of(year, Month.NOVEMBER, 11),      // Armistice Day
-            LocalDate.of(year, Month.DECEMBER, 25)       // Christmas Day
-        )
-
-        if (fixedHolidays.contains(date)) {
-            return true
-        }
-
-        // Moveable holidays (based on Easter)
+    private fun computeHolidays(year: Int): Set<LocalDate> {
         val easterDate = calculateEasterDate(year)
-        val easterMonday = easterDate.plusDays(1)
-        val ascensionDay = easterDate.plusDays(39)
-        val whitMonday = easterDate.plusDays(50)
-
-        return date == easterMonday || date == ascensionDay || date == whitMonday
+        return hashSetOf(
+            LocalDate.of(year, Month.JANUARY, 1),
+            LocalDate.of(year, Month.MAY, 1),
+            LocalDate.of(year, Month.MAY, 8),
+            LocalDate.of(year, Month.JULY, 14),
+            LocalDate.of(year, Month.AUGUST, 15),
+            LocalDate.of(year, Month.NOVEMBER, 1),
+            LocalDate.of(year, Month.NOVEMBER, 11),
+            LocalDate.of(year, Month.DECEMBER, 25),
+            easterDate.plusDays(1),   // Easter Monday
+            easterDate.plusDays(39),  // Ascension Day
+            easterDate.plusDays(50)   // Whit Monday
+        )
     }
 
     /**

@@ -242,3 +242,24 @@ rules:
     - name: "Car"
       regex: "^\\d{3}$"
       icon: "mode_bus"
+  aliases:
+    - from: "RHONEXPRESS"
+      to: "RX"
+      matchType: "contains"
+    - from: "NAVI1"
+      to: "NAV1"
+      matchType: "exact"
+      equivalents: ["NAVI1", "NAV1"]
+      displayAs: "NAVI1"
+    - from: "NAV1"
+      to: "NAV1"
+      matchType: "exact"
+      equivalents: ["NAVI1", "NAV1"]
+      displayAs: "NAVI1"
+  excludedLines: ["T36"]
+  vehicleMarkers:
+    - prefix: "TB"
+      marker: "BUS"
+    - prefix: "T"
+      marker: "TRAM"
+  defaultVehicleMarker: "BUS"

@@ -5,34 +5,34 @@ import com.pelotcl.app.generic.data.network.mapstyle.MapStyleConfig
 import com.pelotcl.app.generic.data.network.mapstyle.MapStyleData
 
 class AppMapStyleConfig(private val data: MapStylesData) : MapStyleConfig {
-    override fun getStandardMapStyles(): List<MapStyleData> {
-        return data.standard.map { entry ->
-            MapStyleData(
-                key = entry.key,
-                displayName = entry.displayName,
-                styleUrl = entry.styleUrl,
-                category = MapStyleCategory.STANDARD
-            )
-        }
-    }
 
-    override fun getSatelliteMapStyle(): MapStyleData {
-        return MapStyleData(
-            key = data.satellite.key,
-            displayName = data.satellite.displayName,
-            styleUrl = data.satellite.styleUrl,
-            category = MapStyleCategory.SATELLITE
+    private val standardStyles: List<MapStyleData> = data.standard.map { entry ->
+        MapStyleData(
+            key = entry.key,
+            displayName = entry.displayName,
+            styleUrl = entry.styleUrl,
+            category = MapStyleCategory.STANDARD
         )
     }
 
-    override fun getMapStyleByKey(key: String): MapStyleData? {
-        val standard = getStandardMapStyles()
-        val satellite = getSatelliteMapStyle()
-        return (standard + satellite).find { it.key == key }
-    }
+    private val satelliteStyle: MapStyleData = MapStyleData(
+        key = data.satellite.key,
+        displayName = data.satellite.displayName,
+        styleUrl = data.satellite.styleUrl,
+        category = MapStyleCategory.SATELLITE
+    )
 
-    override fun getDefaultMapStyle(): MapStyleData {
-        val standard = getStandardMapStyles()
-        return standard.firstOrNull { it.key == data.defaultKey } ?: standard.first()
-    }
+    private val stylesByKey: Map<String, MapStyleData> =
+        (standardStyles + satelliteStyle).associateBy { it.key }
+
+    private val defaultStyle: MapStyleData =
+        standardStyles.firstOrNull { it.key == data.defaultKey } ?: standardStyles.first()
+
+    override fun getStandardMapStyles(): List<MapStyleData> = standardStyles
+
+    override fun getSatelliteMapStyle(): MapStyleData = satelliteStyle
+
+    override fun getMapStyleByKey(key: String): MapStyleData? = stylesByKey[key]
+
+    override fun getDefaultMapStyle(): MapStyleData = defaultStyle
 }
