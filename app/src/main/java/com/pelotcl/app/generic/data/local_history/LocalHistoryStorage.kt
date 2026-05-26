@@ -32,6 +32,7 @@ class LocalHistoryStorage(context: Context) {
     private val baseDir: File = File(context.filesDir, "local_history").also { it.mkdirs() }
     private val tripFile = File(baseDir, FILE_TRIPS)
     private val favoritesFile = File(baseDir, FILE_FAVORITES)
+    private val sessionsFile = File(baseDir, FILE_SESSIONS)
     private val mutex = Mutex()
 
     private val json = Json {
@@ -70,6 +71,26 @@ class LocalHistoryStorage(context: Context) {
         }
     }
 
+    // ---------- Sessions (used by LocalProfileComputer for usage_status) ----------
+
+    suspend fun appendSession(entry: SessionAuditEntry) = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val current = readList(sessionsFile, SessionAuditEntry.serializer()) ?: emptyList()
+            // Defensively cap at ~365 sessions to keep the file small even for heavy users;
+            // older entries are not needed for the 30-day profile window.
+            val updated = (current + entry).takeLast(MAX_SESSIONS)
+            writeList(sessionsFile, updated, SessionAuditEntry.serializer())
+        }
+    }
+
+    suspend fun countSessionsWithinDays(days: Int): Int = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val all = readList(sessionsFile, SessionAuditEntry.serializer()) ?: return@withContext 0
+            val cutoffMs = System.currentTimeMillis() - days * MS_PER_DAY
+            all.count { it.openedAtEpochMs >= cutoffMs }
+        }
+    }
+
     // ---------- Favorites audit log ----------
 
     suspend fun appendFavoriteAudit(entry: FavoriteAuditEntry) = mutex.withLock {
@@ -92,6 +113,7 @@ class LocalHistoryStorage(context: Context) {
         withContext(Dispatchers.IO) {
             runCatching { tripFile.delete() }
             runCatching { favoritesFile.delete() }
+            runCatching { sessionsFile.delete() }
         }
     }
 
@@ -141,9 +163,20 @@ class LocalHistoryStorage(context: Context) {
         private const val TAG = "LocalHistoryStorage"
         private const val FILE_TRIPS = "trips.json"
         private const val FILE_FAVORITES = "favorites_audit.json"
+        private const val FILE_SESSIONS = "sessions.json"
         private const val MS_PER_DAY = 24L * 60 * 60 * 1000
+        private const val MAX_SESSIONS = 365
     }
 }
+
+/**
+ * One session boundary kept locally. Only the count over a sliding 30-day window is exposed
+ * to the [LocalProfileComputer] — the raw timestamps stay on device.
+ */
+@Serializable
+data class SessionAuditEntry(
+    @SerialName("opened_at_epoch_ms") val openedAtEpochMs: Long
+)
 
 /**
  * One completed trip kept locally. Richer than the telemetry [TelemetryEvent.TripCompleted]

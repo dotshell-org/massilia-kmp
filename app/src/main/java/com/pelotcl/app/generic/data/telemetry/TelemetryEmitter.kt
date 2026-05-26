@@ -3,6 +3,8 @@ package com.pelotcl.app.generic.data.telemetry
 import android.content.Context
 import android.util.Log
 import com.pelotcl.app.generic.data.config.TelemetryConfigData
+import com.pelotcl.app.generic.data.local_history.LocalHistoryStorage
+import com.pelotcl.app.generic.data.local_history.SessionAuditEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,7 +39,8 @@ object TelemetryEmitter {
         val dailyIdProvider: DailyIdProvider,
         val repository: DailyReportRepository,
         val config: TelemetryConfigData,
-        val scope: CoroutineScope
+        val scope: CoroutineScope,
+        val localHistory: LocalHistoryStorage
     )
 
     fun initialize(context: Context, config: TelemetryConfigData) {
@@ -55,6 +58,7 @@ object TelemetryEmitter {
         val optIn = OptInManager(appCtx)
         val dailyIdProvider = DailyIdProvider(appCtx)
         val storage = TelemetryStorage(appCtx)
+        val localHistory = LocalHistoryStorage(appCtx)
         val appVersion = resolveAppVersion(appCtx)
 
         val repository = DailyReportRepository(
@@ -71,7 +75,8 @@ object TelemetryEmitter {
                 dailyIdProvider = dailyIdProvider,
                 repository = repository,
                 config = config,
-                scope = scope
+                scope = scope,
+                localHistory = localHistory
             )
         )
 
@@ -91,6 +96,8 @@ object TelemetryEmitter {
     fun repository(): DailyReportRepository? = componentsRef.get()?.repository
 
     fun dailyIdProvider(): DailyIdProvider? = componentsRef.get()?.dailyIdProvider
+
+    fun localHistory(): LocalHistoryStorage? = componentsRef.get()?.localHistory
 
     /**
      * Emit a generic telemetry event. No-op if not initialized or user is not opted-in.
@@ -113,9 +120,14 @@ object TelemetryEmitter {
         if (!c.optIn.isOptedIn) return null
         val sessionId = UUID.randomUUID().toString()
         val openedAt = Instant.now().toString()
+        val openedAtMs = System.currentTimeMillis()
         c.scope.launch {
             ensureDailyIdFresh(c)
             c.repository.openSession(sessionId, openedAt)
+            // Mirror the open into the LOCAL-ONLY session log so [LocalProfileComputer] can
+            // see the trailing 30-day session count even after daily_id rotations clear the
+            // current report's session list.
+            c.localHistory.appendSession(SessionAuditEntry(openedAtEpochMs = openedAtMs))
         }
         return sessionId
     }

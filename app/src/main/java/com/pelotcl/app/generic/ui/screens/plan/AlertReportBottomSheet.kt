@@ -277,6 +277,17 @@ fun AlertReportBottomSheet(
                                         lineId = selectedLine?.lineName
                                     )
                                     if (result.isSuccess) {
+                                        // Telemetry: record only on success so we don't pollute
+                                        // the dataset with failed submissions.
+                                        com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                                            com.pelotcl.app.generic.data.telemetry.TelemetryEvent.AlertSubmitted(
+                                                eventId = java.util.UUID.randomUUID().toString(),
+                                                at = java.time.Instant.now().toString(),
+                                                kind = alertType.id,
+                                                stopId = selectedStop?.stopName,
+                                                lineId = selectedLine?.lineName
+                                            )
+                                        )
                                         Toast.makeText(
                                             context,
                                             "Alerte envoyée avec succès",

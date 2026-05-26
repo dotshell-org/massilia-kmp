@@ -52,6 +52,12 @@ class TelemetryUploadWorker(
         if (optIn == null || !optIn.isOptedIn) return Result.success()
 
         val snapshot = repo.snapshotPendingForUpload() ?: return Result.success()
+        val localHistory = TelemetryEmitter.localHistory()
+        val profile = if (localHistory != null) {
+            LocalProfileComputer.compute(localHistory, windowDays = config.profileWindowDays)
+        } else {
+            Profile(usageStatus = "occasional", habitualLines = emptyList())
+        }
         val message = Message(
             dailyId = snapshot.dailyId,
             networkCode = snapshot.networkCode,
@@ -61,7 +67,7 @@ class TelemetryUploadWorker(
             trigger = TRIGGER_SESSION_CLOSED,
             day = snapshot.day,
             sessions = snapshot.sessions,
-            profile = currentProfile(),
+            profile = profile,
             events = snapshot.events
         )
 
@@ -89,14 +95,6 @@ class TelemetryUploadWorker(
             Log.w(TAG, "Upload threw, will retry", e)
             if (runAttemptCount >= MAX_ATTEMPTS) Result.failure() else Result.retry()
         }
-    }
-
-    /**
-     * Placeholder profile. Real implementation arrives in Vague 3 via [LocalProfileComputer].
-     * In Vague 1 we ship a deterministic baseline so the schema is exercised end-to-end.
-     */
-    private fun currentProfile(): Profile {
-        return Profile(usageStatus = "occasional", habitualLines = emptyList())
     }
 
     private fun gzip(text: String): ByteArray {
