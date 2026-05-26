@@ -4,6 +4,10 @@ import android.content.Context
 import com.google.gson.reflect.TypeToken
 import com.pelotcl.app.generic.data.GsonProvider
 import androidx.core.content.edit
+import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
+import com.pelotcl.app.generic.data.telemetry.TelemetryEvent
+import java.time.Instant
+import java.util.UUID
 
 /**
  * Repository for managing search history using SharedPreferences.
@@ -53,6 +57,27 @@ class SearchHistoryRepository(context: Context) {
         // Save to preferences
         val json = gson.toJson(trimmedHistory)
         prefs.edit { putString(KEY_SEARCH_HISTORY, json) }
+
+        emitTelemetry(item)
+    }
+
+    private fun emitTelemetry(item: SearchHistoryItem) {
+        // The query is the canonical stop name or line id selected by the user from a result.
+        // It is *not* free text — it always matches a known GTFS resource, so we can ship it.
+        val now = Instant.now().toString()
+        val event = when (item.type) {
+            SearchType.STOP -> TelemetryEvent.SearchStop(
+                eventId = UUID.randomUUID().toString(),
+                at = now,
+                stopId = item.query
+            )
+            SearchType.LINE -> TelemetryEvent.SearchLine(
+                eventId = UUID.randomUUID().toString(),
+                at = now,
+                lineId = item.query
+            )
+        }
+        TelemetryEmitter.emit(event)
     }
 
     /**
