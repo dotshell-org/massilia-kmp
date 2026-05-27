@@ -306,3 +306,22 @@ telemetry:
       - "L'historique détaillé de vos trajets (jamais envoyé)"
     privacyNote: |
       Aucune coordonnée GPS brute n'est envoyée — uniquement les arrêts franchis. L'identifiant change chaque jour, il n'est pas possible de vous suivre dans la durée. Vous pouvez désactiver ce partage à tout moment depuis les réglages.
+    faq:
+      - question: "Qui reçoit les données ?"
+        answer: |
+          Les messages sont envoyés au serveur de Dotshell (api.dotshell.eu), opéré pour Pelo. Aucun annonceur ni courtier en données n'y a accès. Des agrégats anonymes peuvent être partagés avec des autorités organisatrices de la mobilité dans une finalité d'amélioration du transport public.
+      - question: "Pouvez-vous me suivre dans la durée ?"
+        answer: |
+          Non. L'identifiant attaché à chaque message change toutes les 24 heures et n'est jamais relié à votre téléphone, à votre numéro ou à un compte. Une fois la journée passée, les messages ne peuvent plus être reconnectés à votre appareil.
+      - question: "Pourquoi avez-vous besoin de ma position ?"
+        answer: |
+          Pendant une navigation, l'application utilise votre position pour trouver l'arrêt le plus proche dans un rayon d'environ 100 mètres. Seul l'identifiant de cet arrêt est conservé — votre position GPS exacte est immédiatement oubliée et ne quitte jamais votre téléphone.
+      - question: "Et mes adresses (domicile, travail) ?"
+        answer: |
+          Vos arrêts favoris et l'historique détaillé de vos trajets restent uniquement sur votre téléphone. Vous pouvez les supprimer à tout moment depuis l'écran « Confidentialité ».
+      - question: "Comment je vérifie ce qui est envoyé ?"
+        answer: |
+          L'écran « Voir les données collectées aujourd'hui » affiche l'intégralité du message en attente d'envoi, en clair. C'est exactement ce qui sera envoyé à la prochaine fermeture de l'app.
+      - question: "Si je désactive le partage, qu'arrive-t-il aux données déjà envoyées ?"
+        answer: |
+          Les agrégats déjà reçus par le serveur ne peuvent pas être retrouvés, car ils ont été attachés à un identifiant journalier qui n'est plus lié à vous. Ils sont purgés automatiquement après 90 jours.

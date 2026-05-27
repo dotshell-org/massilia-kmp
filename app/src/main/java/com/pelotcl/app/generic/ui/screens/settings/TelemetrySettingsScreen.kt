@@ -37,8 +37,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.work.WorkManager
 import com.pelotcl.app.generic.data.local_history.LocalHistoryStorage
 import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
+import com.pelotcl.app.generic.data.telemetry.TelemetryUploadWorker
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +62,7 @@ fun TelemetrySettingsScreen(
     onSystemBack: () -> Unit,
     onShowCollectedData: () -> Unit,
     onLegalClick: () -> Unit,
+    onFaqClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val optInManager = TelemetryEmitter.optInManager()
@@ -98,6 +101,18 @@ fun TelemetrySettingsScreen(
                             optInManager.acceptCurrentSchema(schemaVersion)
                         } else {
                             optInManager.decline()
+                            // Hardening: when the user opts out we want the pipeline to fall
+                            // silent *immediately*. Three steps:
+                            //  1. Cancel any debounced upload work that was scheduled by the
+                            //     last session close — if we don't, the worker still fires and
+                            //     would try to send whatever was in the pending delta.
+                            //  2. Wipe the on-disk DailyReportState + PendingDelta so the next
+                            //     opt-in starts on a clean slate (no accidental leakage of
+                            //     previously-opted-in events).
+                            //  3. Clear the daily id so a future opt-in doesn't reuse it.
+                            WorkManager.getInstance(context)
+                                .cancelUniqueWork(TelemetryUploadWorker.UNIQUE_WORK_NAME)
+                            TelemetryEmitter.wipePendingAndState()
                         }
                     }
                 )
@@ -119,6 +134,13 @@ fun TelemetrySettingsScreen(
                         runCatching { LocalHistoryStorage(context).wipeAll() }
                     }
                 }
+            )
+            HorizontalDivider(color = Color(0xFF3A3A3C))
+
+            TelemetryMenuRow(
+                title = "Questions fréquentes",
+                subtitle = "Qui reçoit les données, ce que ça implique, comment l'arrêter",
+                onClick = onFaqClick
             )
             HorizontalDivider(color = Color(0xFF3A3A3C))
 

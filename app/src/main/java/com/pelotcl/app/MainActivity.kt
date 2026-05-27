@@ -71,6 +71,7 @@ import com.pelotcl.app.generic.ui.screens.plan.PlanScreen
 import com.pelotcl.app.generic.ui.screens.settings.ItinerarySettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.OfflineSettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.SettingsScreen
+import com.pelotcl.app.generic.ui.screens.settings.TelemetryFaqScreen
 import com.pelotcl.app.generic.ui.screens.settings.TelemetryPreviewScreen
 import com.pelotcl.app.generic.ui.screens.settings.TelemetrySettingsScreen
 import com.pelotcl.app.generic.ui.theme.PeloTheme
@@ -695,11 +696,23 @@ private fun AppNavHost(
                 },
                 onLegalClick = {
                     navController.navigate(Destination.LEGAL)
+                },
+                onFaqClick = {
+                    navController.navigate(Destination.TELEMETRY_FAQ)
                 }
             )
         }
         composable(Destination.TELEMETRY_PREVIEW) {
             TelemetryPreviewScreen(
+                onBackClick = { navController.popBackStack() },
+                onSystemBack = { navController.popBackStack() }
+            )
+        }
+        composable(Destination.TELEMETRY_FAQ) {
+            val faqEntries = com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.config()
+                ?.disclosure?.faq.orEmpty()
+            TelemetryFaqScreen(
+                entries = faqEntries,
                 onBackClick = { navController.popBackStack() },
                 onSystemBack = { navController.popBackStack() }
             )

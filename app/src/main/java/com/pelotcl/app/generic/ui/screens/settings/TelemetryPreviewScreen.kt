@@ -2,9 +2,9 @@ package com.pelotcl.app.generic.ui.screens.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,16 +37,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pelotcl.app.generic.data.telemetry.DailyReportState
 import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
+import com.pelotcl.app.generic.data.telemetry.TelemetryEvent
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
 import kotlinx.serialization.json.Json
 
 /**
- * Read-only dump of the current [DailyReportState] as pretty-printed JSON. Provides radical
- * transparency: the user can see, byte-for-byte, what is queued for upload at any moment.
+ * Transparency dump of the current [DailyReportState], structured for readability:
+ *  - top metadata: daily_id, day, network, schema version
+ *  - per-kind event counts (so the user can see at a glance what is being collected today)
+ *  - the full JSON dump as a fallback for the technically-curious
  *
- * No network calls happen here — we only read the in-memory state from the
- * [com.pelotcl.app.generic.data.telemetry.DailyReportRepository].
+ * Everything is read from the in-memory state held by [TelemetryEmitter.repository] — no
+ * network calls, no disk reads beyond the already-loaded state.
  */
 @Composable
 fun TelemetryPreviewScreen(
@@ -68,8 +71,7 @@ fun TelemetryPreviewScreen(
     }
 
     LaunchedEffect(Unit) {
-        val repo = TelemetryEmitter.repository()
-        snapshot = repo?.state?.value
+        snapshot = TelemetryEmitter.repository()?.state?.value
         loading = false
     }
 
@@ -83,56 +85,43 @@ fun TelemetryPreviewScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
                 .padding(top = 80.dp, bottom = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = "Données collectées aujourd'hui",
                 color = SecondaryColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 24.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
             Text(
-                text = "Voici l'état exact en mémoire, tel qu'il sera envoyé à la prochaine fermeture de l'app.",
+                text = "État exact en mémoire, tel qu'il sera envoyé à la prochaine fermeture débouncée de l'app.",
                 color = Color.Gray,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
-            Spacer(Modifier.height(8.dp))
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Box(modifier = Modifier.padding(12.dp)) {
-                    when {
-                        loading -> CircularProgressIndicator(color = SecondaryColor)
-                        snapshot == null -> Text(
-                            text = "Aucune donnée pour le moment.",
-                            color = SecondaryColor,
-                            fontSize = 14.sp
-                        )
-                        else -> {
-                            val text = prettyJson.encodeToString(DailyReportState.serializer(), snapshot!!)
-                            Column(
-                                modifier = Modifier
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.Top
-                            ) {
-                                Text(
-                                    text = text,
-                                    color = Color(0xFFD0D0D5),
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp,
-                                    lineHeight = 14.sp
-                                )
-                            }
-                        }
-                    }
+            Spacer(Modifier.height(12.dp))
+
+            when {
+                loading -> Box(modifier = Modifier.padding(16.dp)) {
+                    CircularProgressIndicator(color = SecondaryColor)
+                }
+                snapshot == null -> InfoCard(
+                    title = "Aucune donnée",
+                    body = "Soit le partage de données est désactivé, soit aucun événement n'a encore été collecté."
+                )
+                else -> {
+                    val s = snapshot!!
+                    MetadataCard(state = s)
+                    Spacer(Modifier.height(12.dp))
+                    EventBreakdownCard(events = s.events)
+                    Spacer(Modifier.height(12.dp))
+                    RawJsonCard(text = prettyJson.encodeToString(DailyReportState.serializer(), s))
                 }
             }
+
+            Spacer(Modifier.height(24.dp))
         }
 
         IconButton(
@@ -149,4 +138,144 @@ fun TelemetryPreviewScreen(
             )
         }
     }
+}
+
+@Composable
+private fun MetadataCard(state: DailyReportState) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Identité de la journée", color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Spacer(Modifier.height(8.dp))
+            MetadataRow("Identifiant journalier", state.dailyId)
+            MetadataRow("Jour local", state.day)
+            MetadataRow("Réseau", state.networkCode)
+            MetadataRow("Version de l'app", state.appVersion)
+            MetadataRow("Schéma", "v${state.schemaVersion}")
+            MetadataRow("Dernière modification", state.lastModifiedAt)
+            MetadataRow("Sessions de la journée", state.sessions.size.toString())
+            MetadataRow("Événements en attente", state.events.size.toString())
+        }
+    }
+}
+
+@Composable
+private fun MetadataRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.Gray,
+            fontSize = 13.sp,
+            modifier = Modifier.weight(0.5f)
+        )
+        Text(
+            text = value,
+            color = SecondaryColor,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(0.5f)
+        )
+    }
+}
+
+@Composable
+private fun EventBreakdownCard(events: List<TelemetryEvent>) {
+    if (events.isEmpty()) {
+        InfoCard(
+            title = "Aucun événement aujourd'hui",
+            body = "L'application n'a encore rien à signaler. Continuez à utiliser Pelo normalement."
+        )
+        return
+    }
+    val countsByKind = events.groupingBy { it::class.simpleName ?: "Unknown" }.eachCount()
+        .entries.sortedByDescending { it.value }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Répartition des événements", color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Spacer(Modifier.height(8.dp))
+            countsByKind.forEach { (kind, count) ->
+                MetadataRow(kindLabel(kind), count.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun RawJsonCard(text: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0C)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                "Payload brut (JSON)",
+                color = Color.Gray,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            Text(
+                text = text,
+                color = Color(0xFFD0D0D5),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                lineHeight = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(title: String, body: String) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(body, color = Color.Gray, fontSize = 13.sp, lineHeight = 18.sp)
+        }
+    }
+}
+
+/**
+ * Friendly French label for each [TelemetryEvent] subclass — falls back to the class name if
+ * we forget to add a translation for a new event type.
+ */
+private fun kindLabel(simpleName: String): String = when (simpleName) {
+    "SessionOpened" -> "Ouvertures de session"
+    "SessionClosed" -> "Fermetures de session"
+    "SearchStop" -> "Recherches d'arrêt"
+    "SearchLine" -> "Recherches de ligne"
+    "SearchItinerary" -> "Recherches d'itinéraire"
+    "ItineraryCalculated" -> "Itinéraires calculés"
+    "ItineraryChosen" -> "Itinéraires choisis"
+    "TripCompleted" -> "Trajets effectués"
+    "LineClicked" -> "Clics sur lignes"
+    "StopClicked" -> "Clics sur arrêts"
+    "AlertSubmitted" -> "Alertes signalées"
+    "AlertRead" -> "Alertes officielles lues"
+    else -> simpleName
 }

@@ -41,5 +41,6 @@ enum class Destination(
         const val API_HEALTH = "api_health"
         const val TELEMETRY_SETTINGS = "telemetry_settings"
         const val TELEMETRY_PREVIEW = "telemetry_preview"
+        const val TELEMETRY_FAQ = "telemetry_faq"
     }
 }

@@ -58,7 +58,7 @@ class TelemetryUploadWorker(
         } else {
             Profile(usageStatus = "occasional", habitualLines = emptyList())
         }
-        val message = Message(
+        val rawMessage = Message(
             dailyId = snapshot.dailyId,
             networkCode = snapshot.networkCode,
             appVersion = snapshot.appVersion,
@@ -70,8 +70,14 @@ class TelemetryUploadWorker(
             profile = profile,
             events = snapshot.events
         )
-
+        // Last belt-and-suspenders: drop any event whose `kind` is not in the CGU allowlist
+        // (catches accidental schema additions in future Vagues) and cap per-kind cardinality.
+        val message = PayloadGuardrail.sanitize(rawMessage)
         val payload = json.encodeToString(Message.serializer(), message)
+        // Inspect the serialized form for surprises like oversized strings. We still send
+        // when introspection flags a problem (the typed pipeline is the primary defense), but
+        // the warning shows up in Logcat / Crashlytics for the next dev to investigate.
+        PayloadGuardrail.assertNoSurprises(payload)
         val gzipped = gzip(payload)
 
         return try {

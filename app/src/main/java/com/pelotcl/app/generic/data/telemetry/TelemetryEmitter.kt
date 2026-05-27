@@ -143,6 +143,27 @@ object TelemetryEmitter {
     }
 
     /**
+     * Erase every pending telemetry artifact from disk and rotate the daily id so the previous
+     * one is no longer referenced anywhere on device. Intended to be called from the opt-out
+     * flow (after the user flips the switch off): even if a future opt-in happens, the
+     * accumulated state from the previous opted-in window stays buried.
+     *
+     * Does NOT touch [LocalHistoryStorage] (trips + favorites audit + session log) — those are
+     * pure user-facing local data and have their own dedicated "Supprimer mon historique
+     * local" button.
+     */
+    fun wipePendingAndState() {
+        val c = componentsRef.get() ?: return
+        c.scope.launch {
+            // Reset the in-memory + on-disk daily report and pending delta.
+            val rotation = c.dailyIdProvider.currentOrRotate()
+            c.repository.resetForNewDay(rotation.id, rotation.day)
+            // Then drop the daily id itself so the next opt-in starts cleanly.
+            c.dailyIdProvider.clear()
+        }
+    }
+
+    /**
      * Check if the daily id has rotated since the last emit. If so, the previous day's state
      * is reset (we expect the [TelemetryUploader] to have flushed it during the rotation
      * handling at the previous app shutdown — if not, the [PendingDelta] is lost). For now

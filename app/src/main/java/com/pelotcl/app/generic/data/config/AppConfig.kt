@@ -178,5 +178,11 @@ data class TelemetryDisclosureData(
     val body: String = "",
     val items: List<String> = emptyList(),
     val localOnly: List<String> = emptyList(),
-    val privacyNote: String = ""
+    val privacyNote: String = "",
+    val faq: List<TelemetryFaqEntryData> = emptyList()
+)
+
+data class TelemetryFaqEntryData(
+    val question: String,
+    val answer: String
 )
