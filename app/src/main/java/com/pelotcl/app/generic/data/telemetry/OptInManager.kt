@@ -80,6 +80,7 @@ class OptInManager(context: Context) {
     }
 
     companion object {
+        private const val TAG = "TelemetryOptIn"
         private const val PREFS_NAME = "telemetry_opt_in"
         private const val KEY_OPTED_IN = "opted_in"
         private const val KEY_DECIDED_AT = "decided_at"
