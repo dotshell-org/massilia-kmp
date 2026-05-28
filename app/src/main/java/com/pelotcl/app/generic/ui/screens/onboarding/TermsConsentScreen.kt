@@ -1,6 +1,6 @@
 package com.pelotcl.app.generic.ui.screens.onboarding
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pelotcl.app.R
 import com.pelotcl.app.generic.data.config.AboutSectionData
 import com.pelotcl.app.generic.data.config.ConsentConfigData
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
@@ -106,74 +108,94 @@ fun TermsConsentScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 24.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = SecondaryColor,
-                    modifier = Modifier.size(28.dp)
+            // Top section: Title and Paragraph (Scrollable, takes up remaining space)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                    contentDescription = "Logo Pelo",
+                    modifier = Modifier
+                        .size(160.dp)
+                        .padding(bottom = 20.dp)
+                        .align(Alignment.CenterHorizontally) // Centers the logo horizontally
                 )
-                Spacer(Modifier.size(12.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = SecondaryColor,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.size(12.dp))
+                    Text(
+                        text = consent.title,
+                        color = SecondaryColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
                 Text(
-                    text = consent.title,
+                    text = consent.intro,
                     color = SecondaryColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = consent.intro,
-                color = SecondaryColor,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            ConsentCheckboxRow(
-                checked = hasAcknowledgedTerms,
-                onCheckedChange = { hasAcknowledgedTerms = it },
-                annotatedText = acknowledgementAnnotated,
-                tag = "TERMS",
-                onLinkClick = {
-                    showPrivacyDetails = false
-                    showDetails = true
-                }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            ConsentCheckboxRow(
-                checked = hasAcknowledgedPrivacy,
-                onCheckedChange = { hasAcknowledgedPrivacy = it },
-                annotatedText = privacyAcknowledgementAnnotated,
-                tag = "PRIVACY",
-                onLinkClick = {
-                    showPrivacyDetails = true
-                    showDetails = true
-                }
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            Button(
-                onClick = onAccept,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = hasAcknowledgedTerms && hasAcknowledgedPrivacy,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = SecondaryColor,
-                    contentColor = PrimaryColor,
-                    disabledContainerColor = SecondaryColor.copy(alpha = 0.4f),
-                    disabledContentColor = PrimaryColor.copy(alpha = 0.7f)
-                )
+            // Bottom section: Checkboxes and Accept Button (Fixed at the bottom)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
             ) {
-                Text(consent.acceptLabel, fontWeight = FontWeight.SemiBold)
+                ConsentCheckboxRow(
+                    checked = hasAcknowledgedTerms,
+                    onCheckedChange = { hasAcknowledgedTerms = it },
+                    annotatedText = acknowledgementAnnotated,
+                    tag = "TERMS",
+                    onLinkClick = {
+                        showPrivacyDetails = false
+                        showDetails = true
+                    }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                ConsentCheckboxRow(
+                    checked = hasAcknowledgedPrivacy,
+                    onCheckedChange = { hasAcknowledgedPrivacy = it },
+                    annotatedText = privacyAcknowledgementAnnotated,
+                    tag = "PRIVACY",
+                    onLinkClick = {
+                        showPrivacyDetails = true
+                        showDetails = true
+                    }
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Button(
+                    onClick = onAccept,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = hasAcknowledgedTerms && hasAcknowledgedPrivacy,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SecondaryColor,
+                        contentColor = PrimaryColor,
+                        disabledContainerColor = SecondaryColor.copy(alpha = 0.4f),
+                        disabledContentColor = PrimaryColor.copy(alpha = 0.7f)
+                    )
+                ) {
+                    Text(consent.acceptLabel, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
@@ -272,7 +294,7 @@ private fun TermsConsentDetailsScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = "Back",
                             tint = SecondaryColor
                         )
                     }
