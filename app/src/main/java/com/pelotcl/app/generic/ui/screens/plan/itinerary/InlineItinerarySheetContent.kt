@@ -125,6 +125,9 @@ fun InlineItinerarySheetContent(
     var previousStopPairKey by remember { mutableStateOf<String?>(null) }
     var recalcVersion by remember { mutableStateOf(0) }
     var avoidAlertsJob by remember { mutableStateOf<Job?>(null) }
+    // Telemetry: the calc_id of the most recent itinerary calculation. Bound at the start of
+    // recalc() and reused for itinerary.calculated + itinerary.chosen events to correlate them.
+    var lastCalcId by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     // Reset date/time overrides when the itinerary stop pair changes so default search
@@ -267,6 +270,26 @@ fun InlineItinerarySheetContent(
         errorText = null
         journeysAvoidingAlerts = emptyList()
         selectedJourney = null
+
+        // Telemetry: mint a new calc_id and emit search.itinerary before we kick off the heavy
+        // Raptor call. We use stop names (the canonical user-facing identifier from
+        // SelectedStop) as the place ref — both ends are known stops, so no privacy scrubbing
+        // is needed at this layer.
+        val calcId = java.util.UUID.randomUUID().toString()
+        lastCalcId = calcId
+        val originName = departureStop?.name.orEmpty()
+        val destName = arrivalStop?.name.orEmpty()
+        if (originName.isNotBlank() && destName.isNotBlank()) {
+            com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                com.pelotcl.app.generic.data.telemetry.TelemetryEvent.SearchItinerary(
+                    eventId = java.util.UUID.randomUUID().toString(),
+                    at = java.time.Instant.now().toString(),
+                    originRef = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = originName),
+                    destRef = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = destName)
+                )
+            )
+        }
+
         try {
             val today = LocalDate.now()
             val date = selectedDate ?: today
@@ -332,6 +355,40 @@ fun InlineItinerarySheetContent(
 
             if (journeys.isEmpty()) {
                 errorText = "Aucun itineraire trouve"
+            } else {
+                // Telemetry: emit itinerary.calculated with the proposed options. We cap the
+                // payload at 3 options to mirror how the UI displays them and keep the
+                // message size small. Walking-only legs are excluded from the line list.
+                val nowIso = java.time.Instant.now().toString()
+                val depSecondsAtCalc = selectedTimeSeconds
+                val options = journeys.take(3).mapIndexed { idx, journey ->
+                    val nonWalkingLegs = journey.legs.filter { !it.isWalking }
+                    com.pelotcl.app.generic.data.telemetry.ItineraryOption(
+                        index = idx,
+                        durationMin = journey.durationMinutes,
+                        transfers = (nonWalkingLegs.size - 1).coerceAtLeast(0),
+                        lines = nonWalkingLegs.mapNotNull { it.routeName }.distinct()
+                    )
+                }
+                val departureIso = depSecondsAtCalc?.let {
+                    java.time.LocalDate.now()
+                        .atStartOfDay(java.time.ZoneId.systemDefault())
+                        .plusSeconds(it.toLong())
+                        .toInstant()
+                        .toString()
+                } ?: nowIso
+                com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                    com.pelotcl.app.generic.data.telemetry.TelemetryEvent.ItineraryCalculated(
+                        eventId = java.util.UUID.randomUUID().toString(),
+                        at = nowIso,
+                        calcId = calcId,
+                        origin = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = originName),
+                        dest = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = destName),
+                        requestedAt = nowIso,
+                        departureAt = departureIso,
+                        options = options
+                    )
+                )
             }
         } catch (_: Exception) {
             errorText = "Erreur lors du calcul d'itineraire"
@@ -611,7 +668,22 @@ fun InlineItinerarySheetContent(
             JourneyDetailsSheetContent(
                 journey = selectedJourney!!,
                 isExpanded = true,
-                onStartNavigation = { onStartNavigation(selectedJourney!!) },
+                onStartNavigation = {
+                    val chosen = selectedJourney!!
+                    val combined = journeysAvoidingAlerts.map { it.journey } + journeys
+                    val index = combined.indexOf(chosen).takeIf { it >= 0 } ?: -1
+                    lastCalcId?.let { calcId ->
+                        com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                            com.pelotcl.app.generic.data.telemetry.TelemetryEvent.ItineraryChosen(
+                                eventId = java.util.UUID.randomUUID().toString(),
+                                at = java.time.Instant.now().toString(),
+                                calcId = calcId,
+                                optionIndex = index
+                            )
+                        )
+                    }
+                    onStartNavigation(chosen)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),

@@ -22,12 +22,25 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.pelotcl.app.MainActivity
 import com.pelotcl.app.R
+import com.pelotcl.app.generic.data.cache.TransportCacheImpl
+import com.pelotcl.app.generic.data.config.AppConfigLoader
+import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
+import com.pelotcl.app.generic.data.telemetry.TripDetector
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NavigationModeForegroundService : Service() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
     private var isScreenReceiverRegistered = false
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var tripDetector: TripDetector? = null
+    private var tripDetectorInitJob: Job? = null
 
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
@@ -50,6 +63,7 @@ class NavigationModeForegroundService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 NavigationModeStateStore.setNavigationActive(this, false)
+                finalizeTripDetector()
                 stopTracking()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -59,6 +73,7 @@ class NavigationModeForegroundService : Service() {
                 NavigationModeStateStore.setNavigationActive(this, true)
                 startForeground(NOTIFICATION_ID, buildForegroundNotification())
                 startTracking()
+                initializeTripDetector()
                 return START_STICKY
             }
             else -> return START_STICKY
@@ -66,8 +81,12 @@ class NavigationModeForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        finalizeTripDetector()
         stopTracking()
         unregisterScreenReceiver()
+        // serviceScope is intentionally NOT cancelled here: the finalize launch needs to
+        // outlive onDestroy to complete the trip.completed emission and local persistence.
+        // The scope holds no foreground references after the detector's job finishes.
         if (!NavigationModeStateStore.isNavigationActive(this)) {
             NavigationModeStateStore.setNavigationActive(this, false)
         }
@@ -100,8 +119,10 @@ class NavigationModeForegroundService : Service() {
 
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
-                // Keep fused location warm while navigation mode is active.
-                locationResult.lastLocation ?: return
+                val fix = locationResult.lastLocation ?: return
+                // Feed the trip detector — snap-and-drop happens internally, raw coordinates
+                // are not persisted anywhere outside this callback's stack frame.
+                tripDetector?.onLocationFix(fix.latitude, fix.longitude)
             }
         }
 
@@ -120,6 +141,51 @@ class NavigationModeForegroundService : Service() {
         val callback = locationCallback ?: return
         fusedLocationClient.removeLocationUpdates(callback)
         locationCallback = null
+    }
+
+    /**
+     * Build a [TripDetector] once the GTFS stop catalogue has been loaded from the cache. Done
+     * off the main thread because [TransportCacheImpl] does disk IO. If the user has not opted
+     * in to telemetry, or the stops cache is empty (cold start before first fetch), we skip
+     * detector creation — navigation still works fine, just without trip telemetry.
+     */
+    private fun initializeTripDetector() {
+        if (tripDetector != null || tripDetectorInitJob != null) return
+        if (TelemetryEmitter.optInManager()?.isOptedIn != true) return
+
+        tripDetectorInitJob = serviceScope.launch {
+            val cache = TransportCacheImpl(applicationContext)
+            val stops = runCatching { cache.getStops() }.getOrNull().orEmpty()
+            if (stops.isEmpty()) return@launch
+
+            val telemetryConfig = runCatching { AppConfigLoader.getConfig().telemetry }.getOrNull()
+            val detector = TripDetector(
+                stops = stops,
+                snapRadiusMeters = telemetryConfig?.tripSnapRadiusMeters ?: 100,
+                samplingIntervalMs = (telemetryConfig?.tripSamplingSeconds ?: 30L) * 1000L
+            )
+            detector.start()
+            tripDetector = detector
+        }
+    }
+
+    /**
+     * Stop and dispose the [TripDetector]. Idempotent — safe to call from both ACTION_STOP
+     * and onDestroy().
+     *
+     * We join the stop() job in our own [serviceScope] before disposing the detector so that
+     * the trip.completed emission and local persistence have time to complete. The serviceScope
+     * itself is only cancelled in onDestroy *after* this method returns.
+     */
+    private fun finalizeTripDetector() {
+        tripDetectorInitJob?.cancel()
+        tripDetectorInitJob = null
+        val detector = tripDetector ?: return
+        tripDetector = null
+        serviceScope.launch {
+            detector.stop().join()
+            detector.dispose()
+        }
     }
 
     private fun buildForegroundNotification(): Notification {

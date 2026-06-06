@@ -4,7 +4,13 @@ import android.content.Context
 import androidx.core.content.edit
 import com.google.gson.reflect.TypeToken
 import com.pelotcl.app.generic.data.GsonProvider
+import com.pelotcl.app.generic.data.local_history.FavoriteAuditEntry
 import com.pelotcl.app.generic.data.models.stops.Favorite
+import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Repository for managing favorites - both the new user-created favorites
@@ -19,6 +25,25 @@ class FavoritesRepository(private val context: Context) {
 
     // New keys for the updated favorites system
     private val keyUserFavorites = "user_favorites_v2"
+
+    // Background scope used to write to the LOCAL-ONLY audit log without blocking the caller.
+    // Audit entries are not sent to the backend by design — they only feed the user-facing
+    // "Mes favoris" history view and reflect a user preference, not a telemetry signal.
+    private val auditScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private fun appendFavoriteAudit(action: String, type: String, refId: String?) {
+        val storage = TelemetryEmitter.localHistory() ?: return
+        auditScope.launch {
+            storage.appendFavoriteAudit(
+                FavoriteAuditEntry(
+                    atEpochMs = System.currentTimeMillis(),
+                    action = action,
+                    favoriteType = type,
+                    refId = refId
+                )
+            )
+        }
+    }
 
     fun getFavoriteStops(): Set<String> {
         return prefs.getStringSet(keyFavoriteStops, emptySet()) ?: emptySet()
@@ -43,6 +68,12 @@ class FavoritesRepository(private val context: Context) {
                 remove(keyStopDessertePrefix + stopName)
             }
         }
+
+        appendFavoriteAudit(
+            action = if (isAdding) "added" else "removed",
+            type = "stop",
+            refId = stopName
+        )
         return isAdding
     }
 
@@ -89,6 +120,7 @@ class FavoritesRepository(private val context: Context) {
 
         favorites.add(favorite)
         saveUserFavorites(favorites)
+        appendFavoriteAudit(action = "added", type = "user", refId = favorite.id)
         return true
     }
 
@@ -100,7 +132,11 @@ class FavoritesRepository(private val context: Context) {
         val initialSize = favorites.size
         favorites.removeAll { it.id == favoriteId }
         saveUserFavorites(favorites)
-        return favorites.size < initialSize
+        val removed = favorites.size < initialSize
+        if (removed) {
+            appendFavoriteAudit(action = "removed", type = "user", refId = favoriteId)
+        }
+        return removed
     }
 
     /**

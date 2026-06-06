@@ -218,6 +218,14 @@ fun LineDetailsBottomSheet(
                     e
                 )
             }
+            com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                com.pelotcl.app.generic.data.telemetry.TelemetryEvent.LineClicked(
+                    eventId = java.util.UUID.randomUUID().toString(),
+                    at = java.time.Instant.now().toString(),
+                    lineId = lineInfo.lineName,
+                    context = "bottom_sheet"
+                )
+            )
         }
     }
 
@@ -518,13 +526,33 @@ private fun TrafficAlertsSection(
 
         alerts.forEachIndexed { index, alert ->
             var isExpanded by remember { mutableStateOf(false) }
+            var hasEmittedRead by remember(alert.alertNumber) { mutableStateOf(false) }
             val severity = AlertSeverity.fromSeverityType(alert.severityType, alert.severityLevel)
             val severityColor = Color(severity.color)
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable {
+                        val wasExpanded = isExpanded
+                        isExpanded = !isExpanded
+                        // Telemetry: emit alert.read on the FIRST expand of this alert in the
+                        // current bottom-sheet lifetime. Closing+re-opening then re-expanding
+                        // produces a fresh state instance so it counts as a new read, which
+                        // is the desired behavior (user came back to re-check it).
+                        if (!wasExpanded && !hasEmittedRead) {
+                            hasEmittedRead = true
+                            val alertKey = "alert_${alert.alertNumber}_${alert.lineCode}"
+                            com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
+                                com.pelotcl.app.generic.data.telemetry.TelemetryEvent.AlertRead(
+                                    eventId = java.util.UUID.randomUUID().toString(),
+                                    at = java.time.Instant.now().toString(),
+                                    alertId = alertKey,
+                                    readAt = java.time.Instant.now().toString()
+                                )
+                            )
+                        }
+                    }
                     .padding(vertical = 8.dp)
             ) {
                 Row(

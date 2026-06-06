@@ -62,6 +62,9 @@ import com.pelotcl.app.generic.data.models.search.StationSearchResult
 import com.pelotcl.app.generic.data.repository.offline.search.SearchHistoryItem
 import com.pelotcl.app.generic.data.repository.offline.search.SearchType
 import com.pelotcl.app.generic.data.repository.offline.mapstyle.MapStyleCompat
+import com.pelotcl.app.generic.ui.screens.onboarding.NotificationPermissionGate
+import com.pelotcl.app.generic.ui.screens.onboarding.TelemetryOptInGate
+import com.pelotcl.app.generic.ui.screens.onboarding.TermsConsentGate
 import com.pelotcl.app.generic.ui.screens.settings.about.AboutScreen
 import com.pelotcl.app.generic.ui.screens.settings.about.ContactScreen
 import com.pelotcl.app.generic.ui.screens.settings.about.CreditsScreen
@@ -70,6 +73,9 @@ import com.pelotcl.app.generic.ui.screens.plan.PlanScreen
 import com.pelotcl.app.generic.ui.screens.settings.ItinerarySettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.OfflineSettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.SettingsScreen
+import com.pelotcl.app.generic.ui.screens.settings.TelemetryFaqScreen
+import com.pelotcl.app.generic.ui.screens.settings.TelemetryPreviewScreen
+import com.pelotcl.app.generic.ui.screens.settings.TelemetrySettingsScreen
 import com.pelotcl.app.generic.ui.theme.PeloTheme
 import com.pelotcl.app.generic.ui.theme.AccentColor
 import com.pelotcl.app.generic.ui.viewmodel.TransportViewModel
@@ -140,36 +146,30 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             PeloTheme {
-                NavBar(
-                    modifier = Modifier.fillMaxSize(),
-                    onNavigationModeChangedExternal = { active ->
-                        if (!hasAppliedFirstNavigationCallback) {
-                            hasAppliedFirstNavigationCallback = true
-                            // Ignore initial Compose state restoration mismatch when service is still active.
-                            if (isNavigationModeEnabled && !active) return@NavBar
+                TermsConsentGate {
+                    NotificationPermissionGate {
+                        TelemetryOptInGate {
+                            NavBar(
+                                modifier = Modifier.fillMaxSize(),
+                                onNavigationModeChangedExternal = { active ->
+                                    if (!hasAppliedFirstNavigationCallback) {
+                                        hasAppliedFirstNavigationCallback = true
+                                        // Ignore initial Compose state restoration mismatch when service is still active.
+                                        if (isNavigationModeEnabled && !active) return@NavBar
+                                    }
+                                    if (active == isNavigationModeEnabled) return@NavBar
+                                    isNavigationModeEnabled = active
+                                    if (active) {
+                                        startNavigationForegroundService()
+                                    } else {
+                                        stopNavigationForegroundService()
+                                    }
+                                    setNavigationLockScreenBehavior(active)
+                                }
+                            )
                         }
-                        if (active == isNavigationModeEnabled) return@NavBar
-                        isNavigationModeEnabled = active
-                        if (active) {
-                            startNavigationForegroundService()
-                        } else {
-                            stopNavigationForegroundService()
-                        }
-                        setNavigationLockScreenBehavior(active)
                     }
-                )
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val hasNotificationPermission = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (!hasNotificationPermission) {
-                registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-                    .launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
             }
         }
 
@@ -675,7 +675,40 @@ private fun AppNavHost(
                 },
                 onApiHealthClick = {
                     navController.navigate(Destination.API_HEALTH)
+                },
+                onTelemetryClick = {
+                    navController.navigate(Destination.TELEMETRY_SETTINGS)
                 }
+            )
+        }
+        composable(Destination.TELEMETRY_SETTINGS) {
+            TelemetrySettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onSystemBack = { navController.popBackStack() },
+                onShowCollectedData = {
+                    navController.navigate(Destination.TELEMETRY_PREVIEW)
+                },
+                onLegalClick = {
+                    navController.navigate(Destination.LEGAL)
+                },
+                onFaqClick = {
+                    navController.navigate(Destination.TELEMETRY_FAQ)
+                }
+            )
+        }
+        composable(Destination.TELEMETRY_PREVIEW) {
+            TelemetryPreviewScreen(
+                onBackClick = { navController.popBackStack() },
+                onSystemBack = { navController.popBackStack() }
+            )
+        }
+        composable(Destination.TELEMETRY_FAQ) {
+            val faqEntries = com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.config()
+                ?.disclosure?.faq.orEmpty()
+            TelemetryFaqScreen(
+                entries = faqEntries,
+                onBackClick = { navController.popBackStack() },
+                onSystemBack = { navController.popBackStack() }
             )
         }
         composable(Destination.ITINERARY_SETTINGS) {

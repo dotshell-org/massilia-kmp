@@ -10,7 +10,9 @@ data class AppConfig(
     @SerializedName("mapStyles") val mapStyles: MapStylesData,
     @SerializedName("lineColors") val lineColors: LineColorsData,
     @SerializedName("cache") val cache: CacheConfigData,
-    @SerializedName("itinerarySettings") val itinerarySettings: ItinerarySettingsData
+    @SerializedName("itinerarySettings") val itinerarySettings: ItinerarySettingsData,
+    @SerializedName("telemetry") val telemetry: TelemetryConfigData? = null,
+    @SerializedName("consent") val consent: ConsentConfigData
 )
 
 data class TransportConfigData(
@@ -158,4 +160,48 @@ data class ItineraryOptionData(
     val title: String,
     val subtitle: String,
     val defaultEnabled: Boolean = true
+)
+
+data class TelemetryConfigData(
+    val enabled: Boolean = true,
+    val endpointUrl: String,
+    val schemaVersion: Int = 1,
+    val networkCode: String,
+    val closeDebounceSeconds: Long = 60,
+    val tripSamplingSeconds: Long = 30,
+    val tripSnapRadiusMeters: Int = 100,
+    val profileWindowDays: Int = 30,
+    val disclosure: TelemetryDisclosureData = TelemetryDisclosureData()
+)
+
+data class TelemetryDisclosureData(
+    val title: String = "Aidez-nous à améliorer le réseau",
+    val body: String = "",
+    val items: List<String> = emptyList(),
+    val localOnly: List<String> = emptyList(),
+    val privacyNote: String = "",
+    val faq: List<TelemetryFaqEntryData> = emptyList()
+)
+
+data class TelemetryFaqEntryData(
+    val question: String,
+    val answer: String
+)
+
+data class ConsentConfigData(
+    val version: Int,
+    val title: String,
+    val intro: String,
+    val summary: List<String> = emptyList(),
+    val acceptLabel: String = "J'accepte",
+    val declineLabel: String = "Je refuse",
+    val declineNote: String = "",
+    val acknowledgementLabel: String = "J'ai lu et approuvé les conditions d'utilisation",
+    val acknowledgementLinkText: String = "conditions d'utilisation",
+    val privacyAcknowledgementLabel: String = "J'ai lu et approuvé la politique de confidentialite",
+    val privacyAcknowledgementLinkText: String = "politique de confidentialite",
+    val privacyDetailsTitle: String = "Politique de confidentialité",
+    val privacySectionTitle: String = "Traitement des données et confidentialité",
+    val detailsTitle: String = "Conditions d'utilisation",
+    val detailsButtonLabel: String = "Lire les conditions compl\u00e8tes"
 )

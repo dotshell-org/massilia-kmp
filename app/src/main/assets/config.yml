@@ -172,7 +172,7 @@ about:
         Pelo est conçue selon le principe de la protection des données dès la conception.
 
         5.1. Stockage Local Exclusif
-        L'intégralité de vos données d'usage (historique de recherche, paramètres de l'application, préférences d'affichage) est stockée exclusivement en local sur votre appareil. Dotshell ne dispose d'aucun accès à ces informations.
+        Vos arrêts favoris et l'historique détaillé de vos trajets sont stockés exclusivement en local sur votre appareil. Dotshell ne dispose d'aucun accès à ces informations. Vous pouvez supprimer cet historique à tout moment depuis l'écran « Confidentialité ».
 
         5.2. Cas particulier des Favoris (Connexion Socket)
         Pour permettre la mise à jour en temps réel de vos lignes et arrêts favoris, une connexion technique temporaire (socket) est établie à l'ouverture de l'application et rompue dès sa fermeture.
@@ -180,8 +180,23 @@ about:
         • Aucune donnée permettant de vous identifier n'est transmise ou enregistrée sur un serveur externe.
         • Ce flux sert uniquement à la synchronisation technique des données de transport durant votre session de navigation.
 
-        5.3. Absence de revente
-        Dotshell ne collecte, ne vend, ni ne commercialise aucune donnée personnelle. Les requêtes réseau effectuées servent uniquement à interroger les API de transport nécessaires au service (voir page « Crédits »).
+        5.3. Partage de données pour améliorer le réseau
+        L'Application transmet à Dotshell, à chaque fermeture, un message anonyme rattaché à un identifiant qui change toutes les 24 heures. Ce message contient :
+        • Vos heures d'ouverture et de fermeture de l'app
+        • Vos recherches d'arrêts et de lignes
+        • Les itinéraires que vous calculez et choisissez
+        • Les arrêts franchis pendant une navigation (jamais les coordonnées GPS brutes)
+        • Vos clics sur les lignes et arrêts
+        • Les alertes officielles que vous avez lues
+        • Les alertes de trafic que vous avez signalées
+        • Un profil d'usage anonyme calculé localement (occasionnel / régulier / intensif + jusqu'à 5 lignes habituelles)
+
+        L'identifiant journalier est généré aléatoirement, ne contient aucun lien avec votre téléphone et est régénéré chaque jour : il est impossible de vous suivre dans la durée. Les données transmises ne peuvent pas être retrouvées individuellement et sont automatiquement purgées après 90 jours.
+
+        Vos arrêts favoris, l'historique détaillé de vos trajets, et le contenu textuel de vos saisies libres (adresses) ne sont **jamais** transmis. Les adresses utilisées dans un calcul d'itinéraire sont transformées localement en un identifiant de zone géographique d'environ 460 m avant tout envoi.
+
+        5.4. Absence de revente à des annonceurs
+        Dotshell ne vend pas vos données à des annonceurs ou à des courtiers en données. Les données agrégées et anonymes peuvent être utilisées ou partagées avec des Autorités Organisatrices de la Mobilité dans une finalité d'amélioration du service de transport public.
     - title: "Responsabilité"
       content: |
         Les informations (horaires, perturbations) sont fournies à titre indicatif. Dotshell décline toute responsabilité en cas d’inexactitude des données provenant de tiers ou d’indisponibilité du réseau de transport.
@@ -201,6 +216,29 @@ about:
       - platform: "GitHub"
         url: "https://github.com/dotshell/pelo"
         username: "dotshell"
+
+consent:
+  version: 1
+  title: "Conditions d'utilisation"
+  intro: |
+    Pour acceder a Pelo, vous devez accepter les conditions d'utilisation et la politique de confidentialite.
+    Vous pouvez consulter les details complets a tout moment.
+  summary:
+    - "Vous acceptez les conditions d'utilisation et la politique de confidentialite."
+    - "Vos donnees personnelles restent sur votre appareil, sauf pour le partage prevu par la politique de confidentialite."
+    - "Sans acceptation, l'application ne peut pas etre utilisee."
+  acceptLabel: "J'accepte"
+  declineLabel: "Je refuse"
+  declineNote: |
+    Sans acceptation des conditions, l'application ne peut pas etre utilisee.
+  acknowledgementLabel: "J'ai lu et approuve les conditions d'utilisation"
+  acknowledgementLinkText: "conditions d'utilisation"
+  privacyAcknowledgementLabel: "J'ai lu et approuve la politique de confidentialite"
+  privacyAcknowledgementLinkText: "politique de confidentialite"
+  privacyDetailsTitle: "Politique de confidentialite"
+  privacySectionTitle: "Traitement des données et confidentialité"
+  detailsTitle: "Conditions d'utilisation"
+  detailsButtonLabel: "Lire les conditions completes"
 
 rules:
   strongLines: ["A", "B", "C", "D", "F1", "F2", "RX"]
@@ -263,3 +301,50 @@ rules:
     - prefix: "T"
       marker: "TRAM"
   defaultVehicleMarker: "BUS"
+
+telemetry:
+  enabled: true
+  endpointUrl: "https://api.dotshell.eu/pelo/v1/telemetry/daily"
+  schemaVersion: 1
+  networkCode: "lyon-tcl"
+  closeDebounceSeconds: 5
+  tripSamplingSeconds: 30
+  tripSnapRadiusMeters: 100
+  profileWindowDays: 30
+  disclosure:
+    title: "Aidez-nous à améliorer le réseau"
+    body: |
+      Pour mieux comprendre vos besoins et améliorer le réseau de transport, nous aimerions collecter de manière anonyme :
+    items:
+      - "Vos heures d'ouverture de l'app (sans aucune donnée d'identification)"
+      - "Vos recherches d'arrêts et de lignes"
+      - "Les itinéraires que vous calculez et choisissez"
+      - "Les arrêts que vous franchissez pendant une navigation"
+      - "Vos clics sur les lignes et arrêts"
+      - "Les alertes officielles que vous lisez"
+      - "Les alertes que vous signalez"
+      - "Un profil d'usage anonyme (occasionnel / régulier / intensif + vos 5 lignes habituelles)"
+    localOnly:
+      - "Vos arrêts favoris (jamais envoyés)"
+      - "L'historique détaillé de vos trajets (jamais envoyé)"
+    privacyNote: |
+      Aucune coordonnée GPS brute n'est envoyée — uniquement les arrêts franchis. L'identifiant change chaque jour, il n'est pas possible de vous suivre dans la durée. Vous pouvez désactiver ce partage à tout moment depuis les réglages.
+    faq:
+      - question: "Qui reçoit les données ?"
+        answer: |
+          Les messages sont envoyés au serveur de Dotshell (api.dotshell.eu), opéré pour Pelo. Aucun annonceur ni courtier en données n'y a accès. Des agrégats anonymes peuvent être partagés avec des autorités organisatrices de la mobilité dans une finalité d'amélioration du transport public.
+      - question: "Pouvez-vous me suivre dans la durée ?"
+        answer: |
+          Non. L'identifiant attaché à chaque message change toutes les 24 heures et n'est jamais relié à votre téléphone, à votre numéro ou à un compte. Une fois la journée passée, les messages ne peuvent plus être reconnectés à votre appareil.
+      - question: "Pourquoi avez-vous besoin de ma position ?"
+        answer: |
+          Pendant une navigation, l'application utilise votre position pour trouver l'arrêt le plus proche dans un rayon d'environ 100 mètres. Seul l'identifiant de cet arrêt est conservé — votre position GPS exacte est immédiatement oubliée et ne quitte jamais votre téléphone.
+      - question: "Et mes adresses (domicile, travail) ?"
+        answer: |
+          Vos arrêts favoris et l'historique détaillé de vos trajets restent uniquement sur votre téléphone. Vous pouvez les supprimer à tout moment depuis l'écran « Confidentialité ».
+      - question: "Comment je vérifie ce qui est envoyé ?"
+        answer: |
+          L'écran « Voir les données collectées aujourd'hui » affiche l'intégralité du message en attente d'envoi, en clair. C'est exactement ce qui sera envoyé à la prochaine fermeture de l'app.
+      - question: "Si je désactive le partage, qu'arrive-t-il aux données déjà envoyées ?"
+        answer: |
+          Les agrégats déjà reçus par le serveur ne peuvent pas être retrouvés, car ils ont été attachés à un identifiant journalier qui n'est plus lié à vous. Ils sont purgés automatiquement après 90 jours.
