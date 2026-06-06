@@ -307,7 +307,7 @@ telemetry:
   endpointUrl: "https://api.dotshell.eu/pelo/v1/telemetry/daily"
   schemaVersion: 1
   networkCode: "lyon-tcl"
-  closeDebounceSeconds: 60
+  closeDebounceSeconds: 5
   tripSamplingSeconds: 30
   tripSnapRadiusMeters: 100
   profileWindowDays: 30
