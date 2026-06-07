@@ -1,6 +1,5 @@
 package com.pelotcl.app.generic.ui.screens.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,11 +36,8 @@ import com.pelotcl.app.generic.ui.theme.SecondaryColor
 fun TelemetryFaqScreen(
     entries: List<TelemetryFaqEntryData>,
     onBackClick: () -> Unit,
-    onSystemBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BackHandler { onSystemBack() }
-
     Box(
         modifier = modifier
             .fillMaxSize()

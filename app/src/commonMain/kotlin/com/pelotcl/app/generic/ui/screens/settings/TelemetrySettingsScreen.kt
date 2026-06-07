@@ -1,6 +1,5 @@
 package com.pelotcl.app.generic.ui.screens.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,43 +24,25 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.pelotcl.app.generic.data.local_history.LocalHistoryStorage
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
-/**
- * Settings entry-point for telemetry. Lets the user:
- *  - inspect the raw payload of the day (transparency, "see exactly what we collect"),
- *  - wipe the local history (favorites audit + trip history).
- *
- * Designed to mirror the visual style of the rest of [SettingsScreen]: dark background,
- * card rows, chevrons for navigation. The CGU link is a navigation hop to the existing
- * legal screen and is exposed by the caller through [onLegalClick].
- */
+
 @Composable
 fun TelemetrySettingsScreen(
     onBackClick: () -> Unit,
-    onSystemBack: () -> Unit,
     onShowCollectedData: () -> Unit,
+    onWipeHistory: () -> Unit,
     onLegalClick: () -> Unit,
     onFaqClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    BackHandler { onSystemBack() }
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -92,11 +73,7 @@ fun TelemetrySettingsScreen(
             TelemetryMenuRow(
                 title = "Supprimer mon historique local",
                 subtitle = "Trajets et historique des favoris (non envoyés au serveur)",
-                onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        runCatching { LocalHistoryStorage(context).wipeAll() }
-                    }
-                }
+                onClick = onWipeHistory
             )
             HorizontalDivider(color = Color(0xFF3A3A3C))
 

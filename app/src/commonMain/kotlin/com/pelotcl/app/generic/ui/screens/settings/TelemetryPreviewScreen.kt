@@ -1,6 +1,5 @@
 package com.pelotcl.app.generic.ui.screens.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,16 +17,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,7 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pelotcl.app.generic.data.telemetry.DailyReportState
-import com.pelotcl.app.generic.data.telemetry.TelemetryEmitter
 import com.pelotcl.app.generic.data.telemetry.TelemetryEvent
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
@@ -47,32 +40,19 @@ import kotlinx.serialization.json.Json
  *  - top metadata: daily_id, day, network, schema version
  *  - per-kind event counts (so the user can see at a glance what is being collected today)
  *  - the full JSON dump as a fallback for the technically-curious
- *
- * Everything is read from the in-memory state held by [TelemetryEmitter.repository] — no
- * network calls, no disk reads beyond the already-loaded state.
  */
 @Composable
 fun TelemetryPreviewScreen(
+    snapshot: DailyReportState?,
     onBackClick: () -> Unit,
-    onSystemBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    BackHandler { onSystemBack() }
-
-    var snapshot by remember { mutableStateOf<DailyReportState?>(null) }
-    var loading by remember { mutableStateOf(true) }
-
     val prettyJson = remember {
         Json {
             prettyPrint = true
             prettyPrintIndent = "  "
             encodeDefaults = true
         }
-    }
-
-    LaunchedEffect(Unit) {
-        snapshot = TelemetryEmitter.repository()?.state?.value
-        loading = false
     }
 
     Box(
@@ -103,16 +83,13 @@ fun TelemetryPreviewScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            when {
-                loading -> Box(modifier = Modifier.padding(16.dp)) {
-                    CircularProgressIndicator(color = SecondaryColor)
-                }
-                snapshot == null -> InfoCard(
+            when (snapshot) {
+                null -> InfoCard(
                     title = "Aucune donnée",
                     body = "Soit le partage de données est désactivé, soit aucun événement n'a encore été collecté."
                 )
                 else -> {
-                    val s = snapshot!!
+                    val s = snapshot
                     MetadataCard(state = s)
                     Spacer(Modifier.height(12.dp))
                     EventBreakdownCard(events = s.events)

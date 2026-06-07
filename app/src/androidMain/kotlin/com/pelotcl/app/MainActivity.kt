@@ -673,9 +673,17 @@ private fun AppNavHost(
         composable(Destination.TELEMETRY_SETTINGS) {
             TelemetrySettingsScreen(
                 onBackClick = { navController.popBackStack() },
-                onSystemBack = { navController.popBackStack() },
                 onShowCollectedData = {
                     navController.navigate(Destination.TELEMETRY_PREVIEW)
+                },
+                onWipeHistory = {
+                    kotlinx.coroutines.MainScope().launch(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching {
+                            com.pelotcl.app.generic.data.local_history.LocalHistoryStorage(
+                                this@MainActivity
+                            ).wipeAll()
+                        }
+                    }
                 },
                 onLegalClick = {
                     navController.navigate(Destination.LEGAL)
@@ -687,8 +695,8 @@ private fun AppNavHost(
         }
         composable(Destination.TELEMETRY_PREVIEW) {
             TelemetryPreviewScreen(
-                onBackClick = { navController.popBackStack() },
-                onSystemBack = { navController.popBackStack() }
+                snapshot = com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.repository()?.state?.value,
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Destination.TELEMETRY_FAQ) {
@@ -696,8 +704,7 @@ private fun AppNavHost(
                 ?.disclosure?.faq.orEmpty()
             TelemetryFaqScreen(
                 entries = faqEntries,
-                onBackClick = { navController.popBackStack() },
-                onSystemBack = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Destination.ITINERARY_SETTINGS) {
