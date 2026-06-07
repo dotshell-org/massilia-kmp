@@ -32,6 +32,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import com.pelotcl.app.generic.ui.viewmodel.StopDeparturePreview
 import kotlinx.coroutines.flow.map
+import kotlinx.datetime.Clock
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -74,7 +75,7 @@ fun StationBottomSheet(
         com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
             com.pelotcl.app.generic.data.telemetry.TelemetryEvent.StopClicked(
                 eventId = java.util.UUID.randomUUID().toString(),
-                at = java.time.Instant.now().toString(),
+                at = Clock.System.now().toString(),
                 stopId = stop.nom,
                 context = "bottom_sheet"
             )

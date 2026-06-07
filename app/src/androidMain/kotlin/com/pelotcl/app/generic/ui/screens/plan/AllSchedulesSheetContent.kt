@@ -49,7 +49,9 @@ import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
 import com.pelotcl.app.generic.utils.graphics.BusIconHelper
 import com.pelotcl.app.generic.utils.LineColorHelper
-import java.util.Calendar
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 private fun getLineColor(lineName: String): Color {
     // Harmonise avec LineColorHelper (TB → #eab308, etc.)
@@ -61,8 +63,8 @@ private fun getAllDayScheduleColor(hour: String, minute: String): Color {
     val minuteInt = minute.toIntOrNull() ?: return PrimaryColor
     if (hourInt !in 0..23 || minuteInt !in 0..59) return PrimaryColor
 
-    val now = Calendar.getInstance()
-    val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    val nowMinutes = now.hour * 60 + now.minute
     val scheduleMinutes = hourInt * 60 + minuteInt
     val diffMinutes = scheduleMinutes - nowMinutes
 

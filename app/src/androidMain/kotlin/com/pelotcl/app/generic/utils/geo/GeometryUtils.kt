@@ -2,7 +2,9 @@ package com.pelotcl.app.generic.utils.geo
 
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import org.maplibre.android.geometry.LatLng
-import java.util.Calendar
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -11,10 +13,8 @@ import kotlin.math.sqrt
 object GeometryUtils {
 
     fun currentTimeInSeconds(): Int {
-        val calendar = Calendar.getInstance()
-        return calendar.get(Calendar.HOUR_OF_DAY) * 3600 +
-                calendar.get(Calendar.MINUTE) * 60 +
-                calendar.get(Calendar.SECOND)
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        return now.hour * 3600 + now.minute * 60 + now.second
     }
 
     fun computeBearingDegrees(from: LatLng, to: LatLng): Double {

@@ -3,8 +3,9 @@
 package com.pelotcl.app.generic.ui.screens.plan.itinerary
 
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
+import com.pelotcl.app.platform.Log
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -61,9 +62,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.util.Calendar
-import java.util.Locale
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 
 private const val MAX_ITINERARY_STOP_IDS_PER_SIDE = 64
 private const val MAX_ITINERARY_FALLBACK_STOPS = 2
@@ -148,6 +154,7 @@ fun InlineItinerarySheetContent(
             date: LocalDate,
             blockedNames: Set<String>
         ): List<JourneyResult> {
+            val jvmDate = java.time.LocalDate.of(date.year, date.monthNumber, date.dayOfMonth)
             return withContext(Dispatchers.IO) {
                 if (timeMode == TimeMode.ARRIVAL) {
                     raptorRepository.getOptimizedPathsArriveBy(
@@ -155,7 +162,7 @@ fun InlineItinerarySheetContent(
                         destinationStopIds = destinationIds,
                         arrivalTimeSeconds = selectedTimeSeconds ?: defaultArrivalSeconds(),
                         searchWindowMinutes = 120,
-                        date = date,
+                        date = jvmDate,
                         blockedRouteNames = blockedNames
                     )
                 } else {
@@ -163,7 +170,7 @@ fun InlineItinerarySheetContent(
                         originStopIds = originIds,
                         destinationStopIds = destinationIds,
                         departureTimeSeconds = selectedTimeSeconds,
-                        date = date,
+                        date = jvmDate,
                         blockedRouteNames = blockedNames
                     )
                 }
@@ -283,7 +290,7 @@ fun InlineItinerarySheetContent(
             com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
                 com.pelotcl.app.generic.data.telemetry.TelemetryEvent.SearchItinerary(
                     eventId = java.util.UUID.randomUUID().toString(),
-                    at = java.time.Instant.now().toString(),
+                                at = Clock.System.now().toString(),
                     originRef = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = originName),
                     destRef = com.pelotcl.app.generic.data.telemetry.PlaceRef(stopId = destName)
                 )
@@ -291,7 +298,7 @@ fun InlineItinerarySheetContent(
         }
 
         try {
-            val today = LocalDate.now()
+            val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
             val date = selectedDate ?: today
             journeys = calculateJourneys(
                 originIds = departureStopIds,
@@ -335,13 +342,13 @@ fun InlineItinerarySheetContent(
                         originStopIds = departureStopIds,
                         destinationStopIds = arrivalStopIds,
                         departureTimeSeconds = 0,
-                        date = today,
+                        date = java.time.LocalDate.of(today.year, today.monthNumber, today.dayOfMonth),
                         blockedRouteNames = blockedRouteNames
                     ).isNotEmpty()
                 }
 
                 if (hasServiceEarlierToday) {
-                    val tomorrow = today.plusDays(1)
+                    val tomorrow = today.plus(1, DateTimeUnit.DAY)
                     journeys = calculateJourneys(
                         originIds = departureStopIds,
                         destinationIds = arrivalStopIds,
@@ -359,7 +366,7 @@ fun InlineItinerarySheetContent(
                 // Telemetry: emit itinerary.calculated with the proposed options. We cap the
                 // payload at 3 options to mirror how the UI displays them and keep the
                 // message size small. Walking-only legs are excluded from the line list.
-                val nowIso = java.time.Instant.now().toString()
+                val nowIso = Clock.System.now().toString()
                 val depSecondsAtCalc = selectedTimeSeconds
                 val options = journeys.take(3).mapIndexed { idx, journey ->
                     val nonWalkingLegs = journey.legs.filter { !it.isWalking }
@@ -370,12 +377,12 @@ fun InlineItinerarySheetContent(
                         lines = nonWalkingLegs.mapNotNull { it.routeName }.distinct()
                     )
                 }
-                val departureIso = depSecondsAtCalc?.let {
-                    java.time.LocalDate.now()
-                        .atStartOfDay(java.time.ZoneId.systemDefault())
-                        .plusSeconds(it.toLong())
-                        .toInstant()
-                        .toString()
+                val departureIso = depSecondsAtCalc?.let { seconds ->
+                    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                    LocalDateTime(
+                        today.year, today.month, today.dayOfMonth,
+                        seconds / 3600, (seconds % 3600) / 60
+                    ).toInstant(TimeZone.currentSystemDefault()).toString()
                 } ?: nowIso
                 com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
                     com.pelotcl.app.generic.data.telemetry.TelemetryEvent.ItineraryCalculated(
@@ -399,7 +406,7 @@ fun InlineItinerarySheetContent(
         if (journeys.isEmpty()) return
 
         val journeysSnapshot = journeys
-        val dateSnapshot = selectedDate ?: LocalDate.now()
+        val dateSnapshot = selectedDate ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
         val blockedSnapshot = blockedRouteNames
         avoidAlertsJob = coroutineScope.launch {
             try {
@@ -676,7 +683,7 @@ fun InlineItinerarySheetContent(
                         com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
                             com.pelotcl.app.generic.data.telemetry.TelemetryEvent.ItineraryChosen(
                                 eventId = java.util.UUID.randomUUID().toString(),
-                                at = java.time.Instant.now().toString(),
+                    at = Clock.System.now().toString(),
                                 calcId = calcId,
                                 optionIndex = index
                             )
@@ -704,7 +711,7 @@ fun InlineItinerarySheetContent(
 
         if (showDatePicker) {
             DatePickerDialog(
-                initialDate = selectedDate ?: LocalDate.now(),
+                initialDate = selectedDate ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
                 onDateSelected = { date ->
                     selectedDate = date
                 },
@@ -715,8 +722,8 @@ fun InlineItinerarySheetContent(
 }
 
 private fun defaultArrivalSeconds(): Int {
-    val cal = Calendar.getInstance()
-    return (cal.get(Calendar.HOUR_OF_DAY) + 1) * 3600 + cal.get(Calendar.MINUTE) * 60
+    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    return (now.hour + 1) * 3600 + now.minute * 60
 }
 
 private fun journeySignature(journey: JourneyResult): String {

@@ -1,5 +1,6 @@
 package com.pelotcl.app.generic.ui.screens.plan
 
+import kotlinx.datetime.Clock
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -282,7 +283,7 @@ fun AlertReportBottomSheet(
                                         com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
                                             com.pelotcl.app.generic.data.telemetry.TelemetryEvent.AlertSubmitted(
                                                 eventId = java.util.UUID.randomUUID().toString(),
-                                                at = java.time.Instant.now().toString(),
+                                                at = Clock.System.now().toString(),
                                                 kind = alertType.id,
                                                 stopId = selectedStop?.stopName,
                                                 lineId = selectedLine?.lineName

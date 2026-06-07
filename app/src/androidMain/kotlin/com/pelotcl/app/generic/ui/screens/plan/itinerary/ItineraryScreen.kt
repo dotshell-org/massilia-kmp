@@ -70,9 +70,18 @@ import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
 import com.pelotcl.app.generic.utils.graphics.BusIconHelper
 import com.pelotcl.app.generic.utils.LineColorHelper
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+
+private val FRENCH_MONTHS = arrayOf(
+    "janv.", "févr.", "mars", "avr.", "mai", "juin",
+    "juil.", "août", "sept.", "oct.", "nov.", "déc."
+)
 
 /**
  * Compact journey card showing key information in a condensed format
@@ -838,7 +847,7 @@ fun TimePickerDialog(
                             )
                         }
                         Text(
-                            text = String.format(Locale.ROOT, "%02d", selectedHour),
+                            text =     selectedHour.toString().padStart(2, '0'),
                             color = SecondaryColor,
                             fontSize = 48.sp,
                             fontWeight = FontWeight.Bold
@@ -872,7 +881,7 @@ fun TimePickerDialog(
                             )
                         }
                         Text(
-                            text = String.format(Locale.ROOT, "%02d", selectedMinute),
+                            text =     selectedMinute.toString().padStart(2, '0'),
                             color = SecondaryColor,
                             fontSize = 48.sp,
                             fontWeight = FontWeight.Bold
@@ -933,7 +942,7 @@ fun TimePickerDialog(
 private fun formatTimeSeconds(seconds: Int): String {
     val hours = (seconds / 3600) % 24
     val minutes = (seconds % 3600) / 60
-    return String.format(Locale.ROOT, "%02d:%02d", hours, minutes)
+    return "${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}"
 }
 
 /**
@@ -943,16 +952,13 @@ private fun formatTimeSeconds(seconds: Int): String {
 private fun formatDateDisplay(date: LocalDate?): String {
     if (date == null) return "Aujourd'hui"
 
-    val today = LocalDate.now()
-    val tomorrow = today.plusDays(1)
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val tomorrow = today.plus(1, DateTimeUnit.DAY)
 
     return when (date) {
         today -> "Aujourd'hui"
         tomorrow -> "Demain"
-        else -> {
-            val formatter = DateTimeFormatter.ofPattern("EEE d MMM", Locale.FRENCH)
-            date.format(formatter).replaceFirstChar { it.uppercase() }
-        }
+        else -> "${date.dayOfMonth} ${FRENCH_MONTHS[date.month.value - 1]}"
     }
 }
 
@@ -967,15 +973,12 @@ fun DatePickerDialog(
     onDismiss: () -> Unit
 ) {
     var selectedDate by remember { mutableStateOf(initialDate) }
-    val today = LocalDate.now()
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
 
     // Current displayed month
     var displayedMonth by remember {
-        mutableStateOf(initialDate.withDayOfMonth(1))
+        mutableStateOf(LocalDate(initialDate.year, initialDate.month, 1))
     }
-
-    val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.FRENCH)
-    DateTimeFormatter.ofPattern("E", Locale.FRENCH)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -996,37 +999,34 @@ fun DatePickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Previous month button
+                    val todayFirstOfMonth = LocalDate(today.year, today.month, 1)
                     IconButton(
                         onClick = {
-                            val prevMonth = displayedMonth.minusMonths(1)
-                            if (!prevMonth.plusMonths(1).isBefore(today.withDayOfMonth(1))) {
+                            val prevMonth = displayedMonth.plus(-1, DateTimeUnit.MONTH)
+                            if (!(prevMonth.plus(1, DateTimeUnit.MONTH) < todayFirstOfMonth)) {
                                 displayedMonth = prevMonth
                             }
                         },
-                        enabled = !displayedMonth.isBefore(today.withDayOfMonth(1)) &&
-                                !displayedMonth.isEqual(today.withDayOfMonth(1))
+                        enabled = displayedMonth > todayFirstOfMonth
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowUp,
                             contentDescription = "Mois précédent",
-                            tint = if (!displayedMonth.isBefore(today.withDayOfMonth(1)) &&
-                                !displayedMonth.isEqual(today.withDayOfMonth(1))
-                            )
+                            tint = if (displayedMonth > todayFirstOfMonth)
                                 SecondaryColor else SecondaryColor.copy(alpha = 0.3f),
                             modifier = Modifier.rotate(-90f)
                         )
                     }
 
                     Text(
-                        text = displayedMonth.format(monthFormatter)
-                            .replaceFirstChar { it.uppercase() },
+                        text = "${FRENCH_MONTHS[displayedMonth.month.value - 1]} ${displayedMonth.year}",
                         color = SecondaryColor,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
 
                     // Next month button
-                    IconButton(onClick = { displayedMonth = displayedMonth.plusMonths(1) }) {
+                    IconButton(onClick = { displayedMonth = displayedMonth.plus(1, DateTimeUnit.MONTH) }) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowUp,
                             contentDescription = "Mois suivant",
@@ -1059,7 +1059,7 @@ fun DatePickerDialog(
 
                 // Calendar grid
                 val firstDayOfMonth = displayedMonth
-                val lastDayOfMonth = displayedMonth.plusMonths(1).minusDays(1)
+                val lastDayOfMonth = displayedMonth.plus(1, DateTimeUnit.MONTH).plus(-1, DateTimeUnit.DAY)
                 // Monday = 1, Sunday = 7, we want Monday as first column (index 0)
                 val firstDayOfWeek = (firstDayOfMonth.dayOfWeek.value - 1) // 0 = Monday
                 val daysInMonth = lastDayOfMonth.dayOfMonth
@@ -1070,7 +1070,7 @@ fun DatePickerDialog(
                 repeat(firstDayOfWeek) { calendarDays.add(null) }
                 // Add all days of the month
                 for (day in 1..daysInMonth) {
-                    calendarDays.add(displayedMonth.withDayOfMonth(day))
+                    calendarDays.add(LocalDate(displayedMonth.year, displayedMonth.month, day))
                 }
                 // Fill remaining cells to complete the last row
                 while (calendarDays.size % 7 != 0) {
@@ -1086,7 +1086,7 @@ fun DatePickerDialog(
                             if (date != null) {
                                 val isSelected = date == selectedDate
                                 val isToday = date == today
-                                val isSelectable = !date.isBefore(today)
+                                val isSelectable = date >= today
 
                                 Box(
                                     modifier = Modifier
