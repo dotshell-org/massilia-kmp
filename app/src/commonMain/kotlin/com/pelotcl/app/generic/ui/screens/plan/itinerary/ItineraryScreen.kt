@@ -54,8 +54,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import com.pelotcl.app.generic.platform.DrawableProvider
+import com.pelotcl.app.generic.utils.graphics.LineIconResolver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -63,12 +63,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.pelotcl.app.generic.data.repository.itinerary.itinerary.JourneyLeg
 import com.pelotcl.app.generic.data.repository.itinerary.itinerary.JourneyResult
- import com.pelotcl.app.generic.data.models.itinerary.TimeMode
- import com.pelotcl.app.generic.ui.theme.AccentColor
+import com.pelotcl.app.generic.data.models.itinerary.TimeMode
+import com.pelotcl.app.generic.ui.theme.AccentColor
 import com.pelotcl.app.generic.ui.theme.Gray700
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
-import com.pelotcl.app.generic.utils.graphics.BusIconHelper
 import com.pelotcl.app.generic.utils.LineColorHelper
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
@@ -96,7 +95,6 @@ fun CompactJourneyCard(
     showAvoidedAlertsBadge: Boolean = false,
     avoidedAlertsLabel: String? = null
 ) {
-    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val primaryTextColor = remember(useLightColors) {
@@ -222,12 +220,11 @@ fun CompactJourneyCard(
                 }
 
                 nonWalkingLegs.forEachIndexed { index, leg ->
-                    val resourceId =
-                        BusIconHelper.getResourceIdForLine(context, leg.routeName ?: "")
+                    val drawableName = LineIconResolver.getDrawableNameForLineName(leg.routeName ?: "")
 
-                    if (resourceId != 0) {
+                    if (drawableName != null) {
                         Image(
-                            painter = painterResource(id = resourceId),
+                            painter = DrawableProvider.getPainter(drawableName),
                             contentDescription = null,
                             modifier = Modifier.size(28.dp)
                         )
@@ -273,7 +270,6 @@ private fun JourneyLegItem(
     useLightColors: Boolean
 ) {
 
-    val context = LocalContext.current
     val lineColor = remember(leg.isWalking, leg.routeName) {
         if (leg.isWalking) Gray700 else Color(
             LineColorHelper.getColorForLineString(leg.routeName ?: "")
@@ -325,12 +321,11 @@ private fun JourneyLegItem(
                         modifier = Modifier.size(20.dp)
                     )
                 } else {
-                    val resourceId =
-                        BusIconHelper.getResourceIdForLine(context, leg.routeName ?: "")
+                    val drawableName = LineIconResolver.getDrawableNameForLineName(leg.routeName ?: "")
 
-                    if (resourceId != 0) {
+                    if (drawableName != null) {
                         Image(
-                            painter = painterResource(id = resourceId),
+                            painter = DrawableProvider.getPainter(drawableName),
                             contentDescription = null,
                             modifier = Modifier.size(30.dp)
                         )
