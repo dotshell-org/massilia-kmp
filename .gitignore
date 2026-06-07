@@ -16,17 +16,12 @@ local.properties
 .idea
 
 # GTFS data files (too large for git)
-app/src/main/java/com/pelotcl/data/gtfstcl/
-app/src/main/assets/data/gtfstcl/
-app/src/main/assets/data/gtfstcl_processed/
-app/src/main/java/com/pelotcl/app/data/gtfstcl/
 gtfs_processed/
 scripts/.venv
 
 # Keystore files
 *.jks
 *.keystore
-/app/release/
 /nul
 
-composeApp/build
+app/build

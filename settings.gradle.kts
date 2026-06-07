@@ -24,4 +24,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Pelo"
-include(":composeApp")
+include(":app")
