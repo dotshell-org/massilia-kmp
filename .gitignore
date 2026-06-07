@@ -24,4 +24,5 @@ scripts/.venv
 *.keystore
 /nul
 
+.kotlin
 app/build
