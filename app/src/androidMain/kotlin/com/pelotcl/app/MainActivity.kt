@@ -671,6 +671,7 @@ private fun AppNavHost(
             )
         }
         composable(Destination.TELEMETRY_SETTINGS) {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
             TelemetrySettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 onShowCollectedData = {
@@ -680,7 +681,7 @@ private fun AppNavHost(
                     kotlinx.coroutines.MainScope().launch(kotlinx.coroutines.Dispatchers.IO) {
                         runCatching {
                             com.pelotcl.app.generic.data.local_history.LocalHistoryStorage(
-                                this@MainActivity
+                                ctx
                             ).wipeAll()
                         }
                     }
@@ -708,9 +709,10 @@ private fun AppNavHost(
             )
         }
         composable(Destination.ITINERARY_SETTINGS) {
-            val config = com.pelotcl.app.generic.data.config.AppConfigLoader.loadConfig(this@MainActivity).itinerarySettings
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val config = com.pelotcl.app.generic.data.config.AppConfigLoader.loadConfig(ctx).itinerarySettings
             val itineraryPrefsRepo = remember {
-                com.pelotcl.app.generic.data.repository.itinerary.itinerary.ItineraryPreferencesRepository(this@MainActivity)
+                com.pelotcl.app.generic.data.repository.itinerary.itinerary.ItineraryPreferencesRepository(ctx)
             }
             ItinerarySettingsScreen(
                 screenTitle = config.screenTitle,
