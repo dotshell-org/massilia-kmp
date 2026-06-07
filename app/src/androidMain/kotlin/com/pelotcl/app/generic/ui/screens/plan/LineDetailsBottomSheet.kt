@@ -90,12 +90,6 @@ import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-@Immutable
-data class LineInfo(
-    val lineName: String,
-    val currentStationName: String
-)
-
 private fun getLineColor(lineName: String): Color {
     // Utilise le helper centralisé pour garantir la cohérence (TB → #eab308, etc.)
     return Color(LineColorHelper.getColorForLineString(lineName))

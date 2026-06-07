@@ -1829,7 +1829,7 @@ fun PlanScreen(
                                 }
                                 AllSchedulesSheetContent(
                                     allSchedulesInfo = resolvedAllSchedulesInfo,
-                                    lineInfo = selectedLine!!,
+                                    stationName = selectedLine!!.currentStationName,
                                     selectedDirection = selectedDirection,
                                     availableDirections = allSchedulesDirections,
                                     headsigns = allSchedulesHeadsigns,

@@ -36,8 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,14 +45,15 @@ import com.pelotcl.app.generic.ui.theme.AccentColor
 import com.pelotcl.app.generic.ui.theme.Gray700
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
-import com.pelotcl.app.generic.utils.graphics.BusIconHelper
 import com.pelotcl.app.generic.utils.LineColorHelper
+import com.pelotcl.app.generic.utils.graphics.LineIconResolver
+import com.pelotcl.app.platform.DrawableProvider
+import com.pelotcl.app.platform.LocalPlatformContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 private fun getLineColor(lineName: String): Color {
-    // Harmonise avec LineColorHelper (TB → #eab308, etc.)
     return Color(LineColorHelper.getColorForLineString(lineName))
 }
 
@@ -80,14 +79,20 @@ private fun getAllDayScheduleColor(hour: String, minute: String): Color {
 @Composable
 fun AllSchedulesSheetContent(
     allSchedulesInfo: AllSchedulesInfo,
-    lineInfo: LineInfo?,
+    stationName: String,
     selectedDirection: Int,
     availableDirections: List<Int>,
     headsigns: Map<Int, String>,
     onDirectionChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
+    val drawableProvider = DrawableProvider(LocalPlatformContext.current)
+    val drawableName = remember(allSchedulesInfo.lineName) {
+        LineIconResolver.getDrawableNameForLineName(allSchedulesInfo.lineName)
+    }
+    val hasDrawable = remember(drawableName) {
+        drawableName.isNotBlank() && drawableProvider.hasDrawable(drawableName)
+    }
 
     val groupedSchedules = remember(allSchedulesInfo.schedules) {
         allSchedulesInfo.schedules
@@ -116,10 +121,9 @@ fun AllSchedulesSheetContent(
             }
             Spacer(modifier = Modifier.width(8.dp))
 
-            val resourceId = BusIconHelper.getResourceIdForLine(context, allSchedulesInfo.lineName)
-            if (resourceId != 0) {
+            if (hasDrawable) {
                 Image(
-                    painter = painterResource(id = resourceId),
+                    painter = drawableProvider.getPainter(drawableName),
                     contentDescription = "Line ${allSchedulesInfo.lineName}",
                     modifier = Modifier.size(50.dp)
                 )
@@ -141,7 +145,7 @@ fun AllSchedulesSheetContent(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = lineInfo?.currentStationName ?: "",
+                text = stationName,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = PrimaryColor
