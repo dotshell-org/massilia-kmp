@@ -17,7 +17,10 @@
       "Bash(xxd)",
       "Bash(./gradlew compileDebugKotlin)",
       "Bash(./gradlew compileDebugKotlin --console=plain)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(dir /b app\\\\src 2>nul || ls -la app/src/ 2>/dev/null || echo \"Checking structure...\")",
+      "WebFetch(domain:maplibre.org)",
+      "WebFetch(domain:central.sonatype.com)"
     ]
   }
 }

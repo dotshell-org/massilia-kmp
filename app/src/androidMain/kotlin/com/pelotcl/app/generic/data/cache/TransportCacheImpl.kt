@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import com.pelotcl.app.generic.data.config.AppConfigLoader
+import com.pelotcl.app.platform.FileSystem
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.data.offline.sanitizeForSerialization
@@ -36,7 +37,7 @@ class TransportCacheImpl(context: Context) : TransportCache {
         val mutex: Mutex = Mutex()
     )
 
-    private val cacheConfig = AppConfigLoader.loadConfig(context).cache
+    private val cacheConfig = AppConfigLoader.loadConfig(FileSystem(context)).cache
     private val cacheValidityDuration = TimeUnit.HOURS.toMillis(cacheConfig.validityHours)
 
     private val json = Json {

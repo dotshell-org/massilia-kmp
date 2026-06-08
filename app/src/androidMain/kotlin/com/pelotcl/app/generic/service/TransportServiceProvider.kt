@@ -19,6 +19,7 @@ import com.pelotcl.app.generic.ui.screens.about.GenericAboutScreen
 import com.pelotcl.app.generic.ui.theme.GenericTransportTheme
 import com.pelotcl.app.specific.data.network.LyonKtorClient
 import com.pelotcl.app.generic.data.config.AppMapStyleConfig
+import com.pelotcl.app.platform.FileSystem
 import com.pelotcl.app.specific.TransportLineServiceImpl
 
 /**
@@ -42,8 +43,8 @@ object TransportServiceProvider {
      * Initializes the provider with Lyon TCL configuration
      */
     fun initialize(context: Context) {
-        // Load configuration from config.yml
-        val appConfig = AppConfigLoader.loadConfig(context)
+        // Load configuration from config.json
+        val appConfig = AppConfigLoader.loadConfig(FileSystem(context))
 
         // Transport configuration
         transportConfig = AppTransportConfig(appConfig.transport)

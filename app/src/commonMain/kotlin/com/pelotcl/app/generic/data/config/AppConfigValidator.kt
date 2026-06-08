@@ -1,18 +1,18 @@
 package com.pelotcl.app.generic.data.config
 
-import android.content.Context
+import com.pelotcl.app.platform.FileSystem
 
 internal object AppConfigValidator {
 
     private val HEX_COLOR = Regex("^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")
 
-    fun validate(context: Context, config: AppConfig): List<String> {
+    fun validate(fileSystem: FileSystem, config: AppConfig): List<String> {
         val errors = mutableListOf<String>()
 
         validateColors(config, errors)
         validateRegexes(config, errors)
         validateMapStyles(config, errors)
-        validateTransport(context, config, errors)
+        validateTransport(fileSystem, config, errors)
 
         return errors
     }
@@ -67,16 +67,13 @@ internal object AppConfigValidator {
         }
     }
 
-    private fun validateTransport(context: Context, config: AppConfig, errors: MutableList<String>) {
+    private fun validateTransport(fileSystem: FileSystem, config: AppConfig, errors: MutableList<String>) {
         if (config.transport.regionBounds.size != 4) {
             errors += "transport.regionBounds must have exactly 4 values (minLat, minLon, maxLat, maxLon), got ${config.transport.regionBounds.size}"
         }
 
         val holidaysFile = config.transport.schoolHolidaysFile
-        val exists = runCatching {
-            context.assets.open(holidaysFile).use { true }
-        }.getOrDefault(false)
-        if (!exists) {
+        if (!fileSystem.assetExists(holidaysFile)) {
             errors += "transport.schoolHolidaysFile \"$holidaysFile\" not found in assets"
         }
     }

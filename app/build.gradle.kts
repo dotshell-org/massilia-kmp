@@ -85,9 +85,6 @@ kotlin {
 
             // MapLibre (Android-only)
             implementation(libs.maplibre.android)
-
-            // YAML parsing for config.yml (Android-only, will use expect/actual later)
-            implementation(libs.snakeyaml)
         }
 
         androidMain {

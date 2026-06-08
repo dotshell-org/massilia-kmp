@@ -727,7 +727,7 @@ private fun AppNavHost(
         }
         composable(Destination.ITINERARY_SETTINGS) {
             val ctx = androidx.compose.ui.platform.LocalContext.current
-            val config = com.pelotcl.app.generic.data.config.AppConfigLoader.loadConfig(ctx).itinerarySettings
+            val config = com.pelotcl.app.generic.data.config.AppConfigLoader.loadConfig(com.pelotcl.app.platform.FileSystem(ctx)).itinerarySettings
             val itineraryPrefsRepo = remember {
                 com.pelotcl.app.generic.data.repository.itinerary.itinerary.ItineraryPreferencesRepository(ctx)
             }
