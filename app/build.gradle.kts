@@ -53,6 +53,9 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.datetime)
 
+            // okio — cross-platform file IO + gzip (replaces java.io + java.util.zip)
+            implementation(libs.okio)
+
             // Raptor-KT
             implementation(libs.raptor.kt)
         }

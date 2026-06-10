@@ -1,7 +1,8 @@
 package com.pelotcl.app.generic.utils.date
 
-import android.content.Context
 import com.pelotcl.app.generic.data.repository.itinerary.holiday.HolidaysData
+import com.pelotcl.app.platform.FileSystem
+import com.pelotcl.app.platform.PlatformContext
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
@@ -9,22 +10,20 @@ import kotlinx.serialization.json.Json
 
 /**
  * Generic school holiday detector.
- * Loads holiday periods from a JSON file.
+ * Loads holiday periods from a bundled JSON asset via the cross-platform
+ * [FileSystem] abstraction (was Android `Context.assets`).
  */
 class HolidayDetector(
-    private val context: Context,
+    context: PlatformContext,
     private val holidayFileName: String,
     private val publicHolidayStrategy: PublicHolidayStrategy? = null
 ) {
-    private val schoolHolidays: List<HolidayPeriod>
-
-    init {
-        schoolHolidays = loadSchoolHolidays()
-    }
+    private val fileSystem = FileSystem(context)
+    private val schoolHolidays: List<HolidayPeriod> = loadSchoolHolidays()
 
     private fun loadSchoolHolidays(): List<HolidayPeriod> {
         return try {
-            val json = context.assets.open(holidayFileName).bufferedReader().use { it.readText() }
+            val json = fileSystem.readAsset(holidayFileName)
             val jsonConfig = Json { ignoreUnknownKeys = true }
             val holidaysData = jsonConfig.decodeFromString<HolidaysData>(json)
             holidaysData.holidays.mapNotNull { holiday ->

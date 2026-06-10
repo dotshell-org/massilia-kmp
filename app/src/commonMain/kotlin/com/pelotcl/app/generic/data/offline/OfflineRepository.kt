@@ -1,26 +1,28 @@
 package com.pelotcl.app.generic.data.offline
 
-import android.content.Context
-import android.util.Log
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.data.models.realtime.alerts.official.TrafficAlert
 import com.pelotcl.app.generic.data.repository.api.OfflineRepository as ApiOfflineRepository
+import com.pelotcl.app.platform.FileSystem
+import com.pelotcl.app.platform.Log
+import com.pelotcl.app.platform.PlatformContext
+import com.pelotcl.app.platform.Settings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
-import androidx.core.content.edit
 
 /**
  * Dedicated persistent storage for offline data.
- * Uses filesDir (not cacheDir) so data is NOT purged by the OS.
+ * Cross-platform: file IO + gzip via okio ([GzipFileStore]), key-value metadata
+ * via the [Settings] abstraction, paths rooted at [FileSystem.filesDir] (NOT
+ * cacheDir, so data is not purged by the OS).
  */
-class OfflineRepository(private val context: Context) : ApiOfflineRepository {
+class OfflineRepository(context: PlatformContext) : ApiOfflineRepository {
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -28,14 +30,15 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
         coerceInputValues = true
     }
 
-    private val offlineDir = File(context.filesDir, "offline_data").also { it.mkdirs() }
-    private val busDir = File(offlineDir, "bus").also { it.mkdirs() }
-    private val prefs = context.getSharedPreferences("offline_data_meta", Context.MODE_PRIVATE)
+    private val fileSystem = FileSystem(context)
+    private val settings = Settings(context, "offline_data_meta")
+
+    private val offlineDir = "${fileSystem.filesDir()}/offline_data".also { GzipFileStore.ensureDir(it) }
+    private val busDir = "$offlineDir/bus".also { GzipFileStore.ensureDir(it) }
 
     companion object {
         private const val TAG = "OfflineRepository"
 
-        // File names
         private const val FILE_METRO_LINES = "metro_lines.json.gz"
         private const val FILE_TRAM_LINES = "tram_lines.json.gz"
         private const val FILE_BUS_LINES = "bus_lines.json.gz"
@@ -45,7 +48,6 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
         private const val FILE_STOPS = "stops.json.gz"
         private const val FILE_TRAFFIC_ALERTS = "traffic_alerts.json.gz"
 
-        // Prefs keys
         private const val KEY_LAST_DOWNLOAD = "last_download_timestamp"
         private const val KEY_MAP_TILES_DOWNLOADED = "map_tiles_downloaded"
         private const val KEY_DOWNLOADED_MAP_STYLES = "downloaded_map_styles"
@@ -62,63 +64,38 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
     suspend fun saveTramLines(lines: List<Feature>) =
         writeCompressed(FILE_TRAM_LINES, lines.sanitizeForSerialization())
 
-    /**
-     * Clears all existing bus line files to prepare for a fresh download.
-     * Must be called ONCE before starting paginated saveBusLinesPage() calls.
-     */
+    /** Clears all existing bus line files to prepare for a fresh download. */
     fun clearBusLines() {
-        val legacyDeleted = File(offlineDir, FILE_BUS_LINES).delete()
-        val busFilesCount = busDir.listFiles()?.size ?: 0
-        busDir.listFiles()?.forEach { it.delete() }
-        Log.i(TAG, "clearBusLines: legacyDeleted=$legacyDeleted, clearedFiles=$busFilesCount")
+        GzipFileStore.delete("$offlineDir/$FILE_BUS_LINES")
+        val busFiles = GzipFileStore.list(busDir)
+        busFiles.forEach { GzipFileStore.delete(it.toString()) }
+        Log.i(TAG, "clearBusLines: cleared ${busFiles.size} files")
     }
 
     /**
      * Saves a page of bus lines, grouping by line name into individual files.
      * Appends to existing files if a line spans multiple pages.
-     * Call clearBusLines() first, then saveBusLinesPage() for each page.
      */
     suspend fun saveBusLinesPage(lines: List<Feature>) = withContext(Dispatchers.IO) {
         val safeLines = lines.sanitizeForSerialization()
-        Log.i(
-            TAG,
-            "saveBusLinesPage: ${lines.size} features, busDir=${busDir.absolutePath}, exists=${busDir.exists()}"
-        )
         val grouped = safeLines.groupBy { it.properties.lineName.uppercase() }
-        var savedCount = 0
         for ((lineName, features) in grouped) {
             val safeFileName = lineName.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".json.gz"
-            val file = File(busDir, safeFileName)
+            val filePath = "$busDir/$safeFileName"
             try {
-                if (file.exists()) {
-                    // Append: read existing, merge, rewrite
-                    try {
-                        val existingJson =
-                            GZIPInputStream(FileInputStream(file).buffered()).use { gzip ->
-                                gzip.bufferedReader(Charsets.UTF_8).readText()
-                            }
-                        val existing = json.decodeFromString<List<Feature>>(existingJson)
-                        writeCompressedTo(file, existing + features)
-                    } catch (e: Exception) {
-                        Log.w(
-                            TAG,
-                            "Failed to read existing $safeFileName, overwriting: ${e.message}"
-                        )
-                        writeCompressedTo(file, features)
-                    }
+                if (GzipFileStore.exists(filePath)) {
+                    val existingJson = GzipFileStore.readGzip(filePath)
+                    val existing = if (existingJson != null) {
+                        runCatching { json.decodeFromString<List<Feature>>(existingJson) }.getOrDefault(emptyList())
+                    } else emptyList()
+                    GzipFileStore.writeGzip(filePath, json.encodeToString(existing + features))
                 } else {
-                    writeCompressedTo(file, features)
+                    GzipFileStore.writeGzip(filePath, json.encodeToString(features))
                 }
-                savedCount++
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save bus line file $safeFileName: ${e.message}", e)
             }
         }
-        val filesOnDisk = busDir.listFiles()?.size ?: 0
-        Log.i(
-            TAG,
-            "Saved page: ${grouped.size} lines, ${lines.size} features, saved=$savedCount, filesOnDisk=$filesOnDisk"
-        )
     }
 
     suspend fun saveNavigoneLines(lines: List<Feature>) =
@@ -136,7 +113,7 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
 
     override suspend fun clearStopsCache() {
         withContext(Dispatchers.IO) {
-            File(offlineDir, FILE_STOPS).delete()
+            GzipFileStore.delete("$offlineDir/$FILE_STOPS")
         }
     }
 
@@ -146,119 +123,81 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
 
     // ===== LOAD METHODS =====
 
-    suspend fun loadMetroLines(): List<Feature>? =
-        readCompressed(FILE_METRO_LINES)
+    suspend fun loadMetroLines(): List<Feature>? = readCompressed(FILE_METRO_LINES)
 
-    suspend fun loadTramLines(): List<Feature>? =
-        readCompressed(FILE_TRAM_LINES)
+    suspend fun loadTramLines(): List<Feature>? = readCompressed(FILE_TRAM_LINES)
 
-    /**
-     * Returns list of all available offline bus line names (without loading the actual data).
-     */
+    /** Returns the names of all available offline bus line files. */
     fun getAvailableBusLineNames(): List<String> {
-        return busDir.listFiles()
-            ?.filter { it.name.endsWith(".json.gz") }
-            ?.map { it.name.removeSuffix(".json.gz") }
-            ?: emptyList()
+        return GzipFileStore.list(busDir)
+            .filter { it.name.endsWith(".json.gz") }
+            .map { it.name.removeSuffix(".json.gz") }
     }
 
-    suspend fun loadNavigoneLines(): List<Feature>? =
-        readCompressed(FILE_NAVIGONE_LINES)
+    suspend fun loadNavigoneLines(): List<Feature>? = readCompressed(FILE_NAVIGONE_LINES)
 
-    suspend fun loadTrambusLines(): List<Feature>? =
-        readCompressed(FILE_TRAMBUS_LINES)
+    suspend fun loadTrambusLines(): List<Feature>? = readCompressed(FILE_TRAMBUS_LINES)
 
-    suspend fun loadRxLines(): List<Feature>? =
-        readCompressed(FILE_RX_LINES)
+    suspend fun loadRxLines(): List<Feature>? = readCompressed(FILE_RX_LINES)
 
-    override suspend fun loadStops(): List<StopFeature>? =
-        readCompressed(FILE_STOPS)
+    override suspend fun loadStops(): List<StopFeature>? = readCompressed(FILE_STOPS)
 
-    override suspend fun loadTrafficAlerts(): List<TrafficAlert>? =
-        readCompressed(FILE_TRAFFIC_ALERTS)
+    override suspend fun loadTrafficAlerts(): List<TrafficAlert>? = readCompressed(FILE_TRAFFIC_ALERTS)
 
     /**
      * Loads non-bus offline lines (metro + tram + navigone + trambus + rx).
-     * Bus lines are NOT included to avoid OOM — use loadBusLineByName() instead.
+     * Bus lines are NOT included to avoid OOM — use the bus files individually.
      */
     override suspend fun loadAllLines(): List<Feature> {
-        // Log which files exist on disk
-        val filesOnDisk = offlineDir.listFiles()?.map { it.name } ?: emptyList()
-        Log.i(TAG, "loadAllLines: files on disk = $filesOnDisk")
-
         val metro = loadMetroLines() ?: emptyList()
         val tram = loadTramLines() ?: emptyList()
         val navigone = loadNavigoneLines() ?: emptyList()
         val trambus = loadTrambusLines() ?: emptyList()
         val rx = loadRxLines() ?: emptyList()
-        Log.i(
-            TAG,
-            "loadAllLines: metro=${metro.size}, tram=${tram.size}, navigone=${navigone.size}, trambus=${trambus.size}, rx=${rx.size}"
-        )
-        if (trambus.isEmpty()) {
-            Log.w(
-                TAG,
-                "loadAllLines: trambus_lines.json.gz missing! You need to re-download offline data with the latest version."
-            )
-        }
         return metro + tram + navigone + trambus + rx
     }
 
     // ===== METADATA =====
 
     fun markDownloadComplete() {
-        prefs.edit {
-            putLong(KEY_LAST_DOWNLOAD, System.currentTimeMillis())
-                .putInt(KEY_DATA_VERSION, DATA_VERSION)
-        }
+        settings.putLong(KEY_LAST_DOWNLOAD, Clock.System.now().toEpochMilliseconds())
+        settings.putInt(KEY_DATA_VERSION, DATA_VERSION)
     }
 
     fun getDownloadedMapStyles(): Set<String> {
-        val styles = prefs.getStringSet(KEY_DOWNLOADED_MAP_STYLES, null)
-        if (styles != null) return styles
+        if (settings.contains(KEY_DOWNLOADED_MAP_STYLES)) {
+            return settings.getStringSet(KEY_DOWNLOADED_MAP_STYLES, emptySet())
+        }
         // Migration: if old boolean was true, assume positron was downloaded
-        if (prefs.getBoolean(KEY_MAP_TILES_DOWNLOADED, false)) {
+        if (settings.getBoolean(KEY_MAP_TILES_DOWNLOADED, false)) {
             val migrated = setOf("positron")
-            prefs.edit { putStringSet(KEY_DOWNLOADED_MAP_STYLES, migrated) }
+            settings.putStringSet(KEY_DOWNLOADED_MAP_STYLES, migrated)
             return migrated
         }
         return emptySet()
     }
 
     fun setDownloadedMapStyles(styles: Set<String>) {
-        prefs.edit {
-            putStringSet(KEY_DOWNLOADED_MAP_STYLES, styles)
-                .putBoolean(KEY_MAP_TILES_DOWNLOADED, styles.isNotEmpty())
-        }
+        settings.putStringSet(KEY_DOWNLOADED_MAP_STYLES, styles)
+        settings.putBoolean(KEY_MAP_TILES_DOWNLOADED, styles.isNotEmpty())
     }
 
     fun getSelectedMapStyles(): Set<String> {
-        return prefs.getStringSet(KEY_SELECTED_MAP_STYLES, null) ?: setOf("positron")
+        return if (settings.contains(KEY_SELECTED_MAP_STYLES)) {
+            settings.getStringSet(KEY_SELECTED_MAP_STYLES, setOf("positron"))
+        } else setOf("positron")
     }
 
     fun setSelectedMapStyles(styles: Set<String>) {
-        prefs.edit { putStringSet(KEY_SELECTED_MAP_STYLES, styles) }
+        settings.putStringSet(KEY_SELECTED_MAP_STYLES, styles)
     }
 
     fun getOfflineDataInfo(): OfflineDataInfo {
-        val lastDownload = prefs.getLong(KEY_LAST_DOWNLOAD, 0L)
+        val lastDownload = settings.getLong(KEY_LAST_DOWNLOAD, 0L)
         val downloadedStyles = getDownloadedMapStyles()
-        val hasData = lastDownload > 0L && offlineDir.listFiles()?.isNotEmpty() == true
-
-        val busFiles = busDir.listFiles()
-        val busCount = busFiles?.count { it.name.endsWith(".json.gz") } ?: 0
-        Log.i(
-            TAG,
-            "getOfflineDataInfo: busDir=${busDir.absolutePath}, exists=${busDir.exists()}, busFiles=${busFiles?.size ?: "null"}, busCount=$busCount, lastDownload=$lastDownload"
-        )
-        if (busCount > 0) {
-            Log.i(
-                TAG,
-                "Bus files sample: ${
-                    busFiles?.take(5)?.map { "${it.name} (${it.length()} bytes)" }
-                }"
-            )
-        }
+        val hasData = lastDownload > 0L && GzipFileStore.list(offlineDir).isNotEmpty()
+        val busFiles = GzipFileStore.list(busDir)
+        val busCount = busFiles.count { it.name.endsWith(".json.gz") }
 
         return OfflineDataInfo(
             isAvailable = hasData,
@@ -273,60 +212,42 @@ class OfflineRepository(private val context: Context) : ApiOfflineRepository {
     // ===== INTERNAL =====
 
     private fun calculateTotalSize(): Long {
-        val mainSize = offlineDir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
-        val busSize = busDir.listFiles()?.sumOf { it.length() } ?: 0L
+        val mainSize = GzipFileStore.list(offlineDir).sumOf { p ->
+            if (p.name == "bus") 0L else GzipFileStore.size(p.toString())
+        }
+        val busSize = GzipFileStore.list(busDir).sumOf { GzipFileStore.size(it.toString()) }
         // Include MapLibre offline tiles database (stored by MapLibre in filesDir)
-        val mapLibreDb = File(context.filesDir, "mbgl-offline.db")
-        val mapTilesSize = if (mapLibreDb.exists()) mapLibreDb.length() else 0L
+        val mapTilesSize = GzipFileStore.size("${fileSystem.filesDir()}/mbgl-offline.db")
         return mainSize + busSize + mapTilesSize
     }
 
-    private suspend inline fun <reified T> writeCompressed(fileName: String, data: T) =
-        writeCompressedTo(File(offlineDir, fileName), data)
-
-    private suspend inline fun <reified T> writeCompressedTo(file: File, data: T) =
+    private suspend inline fun <reified T> writeCompressed(fileName: String, data: T) {
         withContext(Dispatchers.IO) {
             try {
-                file.parentFile?.mkdirs()
-                val jsonString = json.encodeToString(data)
-                GZIPOutputStream(FileOutputStream(file).buffered()).use { gzip ->
-                    gzip.write(jsonString.toByteArray(Charsets.UTF_8))
-                }
-                Log.i(TAG, "Wrote ${file.name}: ${file.length()} bytes")
+                GzipFileStore.writeGzip("$offlineDir/$fileName", json.encodeToString(data))
             } catch (e: Exception) {
-                Log.e(
-                    TAG,
-                    "FAILED writing to ${file.name}: ${e.javaClass.simpleName}: ${e.message}",
-                    e
-                )
+                Log.e(TAG, "FAILED writing $fileName: ${e.message}", e)
             }
         }
+    }
 
     private suspend inline fun <reified T> readCompressed(fileName: String): T? =
         withContext(Dispatchers.IO) {
             try {
-                val file = File(offlineDir, fileName)
-                if (file.exists()) {
-                    val jsonString = GZIPInputStream(FileInputStream(file).buffered()).use { gzip ->
-                        gzip.bufferedReader(Charsets.UTF_8).readText()
-                    }
-                    json.decodeFromString<T>(jsonString)
-                } else null
+                val jsonString = GzipFileStore.readGzip("$offlineDir/$fileName")
+                if (jsonString.isNullOrBlank()) null else json.decodeFromString<T>(jsonString)
             } catch (e: Exception) {
-                Log.e(TAG, "Error reading from $fileName", e)
+                Log.e(TAG, "Error reading $fileName", e)
+                GzipFileStore.delete("$offlineDir/$fileName")
                 null
             }
         }
-
 }
 
 /**
  * Sanitizes Feature list before kotlinx.serialization encoding.
- * Gson (Retrofit) uses Java reflection to populate Kotlin objects and can inject
- * null into non-nullable String fields when the JSON field is missing.
- * This causes NullPointerException in kotlinx.serialization's encodeToString.
- * Must be called on any List<Feature> that comes from Gson before passing to
- * kotlinx.serialization's encodeToString.
+ * Defensive against null injected into non-nullable Kotlin String fields by
+ * legacy reflection-based deserializers.
  */
 @Suppress("UNCHECKED_CAST")
 fun List<Feature>.sanitizeForSerialization(): List<Feature> {
@@ -367,10 +288,7 @@ fun List<Feature>.sanitizeForSerialization(): List<Feature> {
     }
 }
 
-/**
- * Sanitizes StopFeature list before kotlinx.serialization encoding.
- * Same rationale as sanitizeForSerialization: Gson may inject null into non-null Kotlin fields.
- */
+/** Sanitizes StopFeature list before kotlinx.serialization encoding. */
 @Suppress("UNCHECKED_CAST")
 fun List<StopFeature>.sanitizeStopsForSerialization(): List<StopFeature> {
     return map { stop ->

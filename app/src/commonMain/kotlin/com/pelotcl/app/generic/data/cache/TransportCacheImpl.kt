@@ -1,33 +1,35 @@
 package com.pelotcl.app.generic.data.cache
 
-import android.content.Context
-import android.util.Log
-import androidx.core.content.edit
 import com.pelotcl.app.generic.data.config.AppConfigLoader
-import com.pelotcl.app.platform.FileSystem
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.data.offline.sanitizeForSerialization
 import com.pelotcl.app.generic.data.offline.sanitizeStopsForSerialization
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.util.concurrent.TimeUnit
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
+import com.pelotcl.app.generic.data.offline.GzipFileStore
+import com.pelotcl.app.platform.FileSystem
+import com.pelotcl.app.platform.Log
+import com.pelotcl.app.platform.PlatformContext
+import com.pelotcl.app.platform.Settings
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * Generic implementation of TransportCache driven by config.yml.
+ * Generic implementation of [TransportCache] driven by config.json.
+ * Cross-platform: gzip + file IO via okio ([GzipFileStore]) under the app cache
+ * dir, timestamps via the [Settings] abstraction.
  */
-class TransportCacheImpl(context: Context) : TransportCache {
+class TransportCacheImpl(context: PlatformContext) : TransportCache {
 
     private class LineCacheSlot(
         val fileName: String,
@@ -37,8 +39,11 @@ class TransportCacheImpl(context: Context) : TransportCache {
         val mutex: Mutex = Mutex()
     )
 
-    private val cacheConfig = AppConfigLoader.loadConfig(FileSystem(context)).cache
-    private val cacheValidityDuration = TimeUnit.HOURS.toMillis(cacheConfig.validityHours)
+    private val fileSystem = FileSystem(context)
+    private val settings = Settings(context, "transport_cache_meta")
+
+    private val cacheConfig = AppConfigLoader.loadConfig(fileSystem).cache
+    private val cacheValidityDuration = cacheConfig.validityHours * 3_600_000L
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -46,9 +51,8 @@ class TransportCacheImpl(context: Context) : TransportCache {
         coerceInputValues = true
     }
 
-    private val prefs = context.getSharedPreferences("transport_cache_meta", Context.MODE_PRIVATE)
     private val stopsMutex = Mutex()
-    private val cacheDir = File(context.cacheDir, "transport_data").also { it.mkdirs() }
+    private val cacheDir = "${fileSystem.cacheDir()}/transport_data".also { GzipFileStore.ensureDir(it) }
 
     private val metroSlot = LineCacheSlot(FILE_METRO_LINES, KEY_METRO_LINES_TIMESTAMP)
     private val tramSlot = LineCacheSlot(FILE_TRAM_LINES, KEY_TRAM_LINES_TIMESTAMP)
@@ -83,27 +87,27 @@ class TransportCacheImpl(context: Context) : TransportCache {
     override fun hasAnyCachedData(): Boolean {
         if (lineSlots.any { it.memory != null } || stopsCache != null) return true
 
-        val hasLineCache = lineSlots.any { prefs.getLong(it.timestampKey, 0) > 0 }
-        val hasStopsCache = prefs.getLong(KEY_STOPS_TIMESTAMP, 0) > 0
+        val hasLineCache = lineSlots.any { settings.getLong(it.timestampKey, 0) > 0 }
+        val hasStopsCache = settings.getLong(KEY_STOPS_TIMESTAMP, 0) > 0
         return hasLineCache || hasStopsCache
     }
 
     override fun needsCacheRefresh(): Boolean {
         if (!hasAnyCachedData()) return true
 
-        val now = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
         val lineExpired = lineSlots.any { slot ->
-            val timestamp = prefs.getLong(slot.timestampKey, 0)
+            val timestamp = settings.getLong(slot.timestampKey, 0)
             timestamp > 0 && (now - timestamp) >= cacheValidityDuration
         }
-        val stopsExpired = prefs.getLong(KEY_STOPS_TIMESTAMP, 0) > 0 &&
-            (now - prefs.getLong(KEY_STOPS_TIMESTAMP, 0)) >= cacheValidityDuration
+        val stopsTs = settings.getLong(KEY_STOPS_TIMESTAMP, 0)
+        val stopsExpired = stopsTs > 0 && (now - stopsTs) >= cacheValidityDuration
 
         return lineExpired || stopsExpired
     }
 
     private fun isTimestampValid(timestamp: Long): Boolean {
-        return (System.currentTimeMillis() - timestamp) < cacheValidityDuration
+        return (Clock.System.now().toEpochMilliseconds() - timestamp) < cacheValidityDuration
     }
 
     private suspend inline fun <reified T> writeToCompressedFile(fileName: String, data: T) =
@@ -113,15 +117,12 @@ class TransportCacheImpl(context: Context) : TransportCache {
                     Log.w(TAG, "Attempted to write empty data to $fileName, skipping")
                     return@withContext
                 }
-                val file = File(cacheDir, fileName)
                 val jsonString = json.encodeToString(data)
                 if (jsonString.isBlank()) {
                     Log.e(TAG, "Serialization produced blank JSON for $fileName")
                     return@withContext
                 }
-                GZIPOutputStream(FileOutputStream(file).buffered()).use { gzip ->
-                    gzip.write(jsonString.toByteArray(Charsets.UTF_8))
-                }
+                GzipFileStore.writeGzip("$cacheDir/$fileName", jsonString)
             } catch (e: Exception) {
                 Log.e(TAG, "Error writing to $fileName", e)
             }
@@ -130,30 +131,24 @@ class TransportCacheImpl(context: Context) : TransportCache {
     private suspend inline fun <reified T> readFromCompressedFile(fileName: String): T? =
         withContext(Dispatchers.IO) {
             try {
-                val file = File(cacheDir, fileName)
-                if (!file.exists()) return@withContext null
-
-                val jsonString = GZIPInputStream(FileInputStream(file).buffered()).use { gzip ->
-                    gzip.bufferedReader(Charsets.UTF_8).readText()
-                }
-                if (jsonString.isBlank()) {
-                    Log.w(TAG, "Cache file $fileName is blank, deleting")
-                    file.delete()
+                val jsonString = GzipFileStore.readGzip("$cacheDir/$fileName")
+                if (jsonString.isNullOrBlank()) {
+                    GzipFileStore.delete("$cacheDir/$fileName")
                     return@withContext null
                 }
                 json.decodeFromString<T>(jsonString)
             } catch (e: Exception) {
                 Log.e(TAG, "Error reading from $fileName", e)
-                runCatching { File(cacheDir, fileName).delete() }
+                GzipFileStore.delete("$cacheDir/$fileName")
                 null
             }
         }
 
     private suspend fun invalidateLineCache(fileName: String, timestampKey: String) {
         withContext(Dispatchers.IO) {
-            runCatching { File(cacheDir, fileName).delete() }
+            GzipFileStore.delete("$cacheDir/$fileName")
         }
-        prefs.edit { putLong(timestampKey, 0L) }
+        settings.putLong(timestampKey, 0L)
     }
 
     private fun isInvalidLineCache(lines: List<Feature>): Boolean {
@@ -166,8 +161,8 @@ class TransportCacheImpl(context: Context) : TransportCache {
 
     private suspend fun saveLineCache(slot: LineCacheSlot, lines: List<Feature>) {
         slot.memory = lines
-        slot.timestamp = System.currentTimeMillis()
-        prefs.edit { putLong(slot.timestampKey, slot.timestamp) }
+        slot.timestamp = Clock.System.now().toEpochMilliseconds()
+        settings.putLong(slot.timestampKey, slot.timestamp)
         writeToCompressedFile(slot.fileName, lines.sanitizeForSerialization())
     }
 
@@ -182,7 +177,7 @@ class TransportCacheImpl(context: Context) : TransportCache {
             return slot.memory
         }
 
-        val timestamp = prefs.getLong(slot.timestampKey, 0)
+        val timestamp = settings.getLong(slot.timestampKey, 0)
         if (isTimestampValid(timestamp)) {
             val lines = readFromCompressedFile<List<Feature>>(slot.fileName)
             if (lines != null) {
@@ -228,9 +223,9 @@ class TransportCacheImpl(context: Context) : TransportCache {
     override suspend fun saveStops(stops: List<StopFeature>) {
         stopsMutex.withLock {
             stopsCache = stops
-            stopsTimestamp = System.currentTimeMillis()
+            stopsTimestamp = Clock.System.now().toEpochMilliseconds()
 
-            prefs.edit { putLong(KEY_STOPS_TIMESTAMP, stopsTimestamp) }
+            settings.putLong(KEY_STOPS_TIMESTAMP, stopsTimestamp)
             writeToCompressedFile(FILE_STOPS, stops.sanitizeStopsForSerialization())
         }
     }
@@ -240,7 +235,7 @@ class TransportCacheImpl(context: Context) : TransportCache {
             return@withLock stopsCache
         }
 
-        val timestamp = prefs.getLong(KEY_STOPS_TIMESTAMP, 0)
+        val timestamp = settings.getLong(KEY_STOPS_TIMESTAMP, 0)
         if (isTimestampValid(timestamp)) {
             val stops = readFromCompressedFile<List<StopFeature>>(FILE_STOPS)
             if (stops != null) {
