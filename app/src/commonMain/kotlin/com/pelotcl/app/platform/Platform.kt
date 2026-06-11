@@ -11,3 +11,9 @@ expect abstract class PlatformContext
  * Provides the platform-specific HTTP client engine factory.
  */
 expect fun createHttpClientEngine(): io.ktor.client.engine.HttpClientEngineFactory<*>
+
+/**
+ * Human-readable application version (e.g. "1.4.2"). Falls back to "unknown" if it
+ * cannot be resolved. Android: PackageManager versionName. iOS: CFBundleShortVersionString.
+ */
+expect fun appVersionName(context: PlatformContext): String
