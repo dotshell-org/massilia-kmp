@@ -6,7 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
+import com.pelotcl.app.generic.data.models.geojson.StopCollection
 import com.pelotcl.app.generic.utils.map.toLinesGeoJson
+import com.pelotcl.app.generic.utils.map.toStopsGeoJson
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -14,11 +16,14 @@ import org.maplibre.compose.expressions.dsl.convertToColor
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.LineLayer
+import org.maplibre.compose.util.ClickResult
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Cross-platform map canvas built on maplibre-compose (declarative).
@@ -38,7 +43,9 @@ fun MapCanvas(
     initialLongitude: Double = 4.85,
     initialZoom: Double = 10.0,
     lines: FeatureCollection? = null,
+    stops: StopCollection? = null,
     userLocation: Position? = null,
+    onStopClick: (stopName: String) -> Unit = {},
 ) {
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
@@ -60,6 +67,26 @@ fun MapCanvas(
                 source = lineSource,
                 color = feature["color"].convertToColor(),
                 width = const(3.dp),
+            )
+        }
+
+        if (stops != null) {
+            val stopsGeoJson = remember(stops) { stops.toStopsGeoJson() }
+            val stopsSource = rememberGeoJsonSource(data = GeoJsonData.JsonString(stopsGeoJson))
+            CircleLayer(
+                id = "transport-stops",
+                source = stopsSource,
+                radius = const(3.dp),
+                color = const(Color(0xFF1F2937)),
+                onClick = { features ->
+                    val nom = features.firstOrNull()?.properties?.get("nom")?.jsonPrimitive?.contentOrNull
+                    if (nom != null) {
+                        onStopClick(nom)
+                        ClickResult.Consume
+                    } else {
+                        ClickResult.Pass
+                    }
+                },
             )
         }
 
