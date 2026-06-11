@@ -45,6 +45,7 @@ fun MapCanvas(
     initialZoom: Double = 10.0,
     lines: FeatureCollection? = null,
     stops: StopCollection? = null,
+    itineraryGeoJson: String? = null,
     userLocation: Position? = null,
     onStopClick: (stopName: String) -> Unit = {},
     onLineClick: (lineName: String) -> Unit = {},
@@ -107,6 +108,16 @@ fun MapCanvas(
                         ClickResult.Pass
                     }
                 },
+            )
+        }
+
+        if (itineraryGeoJson != null) {
+            val itinerarySource = rememberGeoJsonSource(data = GeoJsonData.JsonString(itineraryGeoJson))
+            LineLayer(
+                id = "itinerary",
+                source = itinerarySource,
+                color = feature["color"].convertToColor(),
+                width = const(6.dp),
             )
         }
 
