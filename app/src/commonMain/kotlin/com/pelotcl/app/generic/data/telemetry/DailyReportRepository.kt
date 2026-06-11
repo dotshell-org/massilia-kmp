@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.pelotcl.app.platform.randomId
 import kotlinx.datetime.Clock
-import java.util.UUID
 
 /**
  * In-memory authoritative view of the current daily report, with debounced persistence
@@ -201,7 +201,7 @@ class DailyReportRepository(
      * Helper to mint event_ids consistently. Useful for call sites that construct events
      * manually instead of going through the [TelemetryEmitter] (rare).
      */
-    fun newEventId(): String = UUID.randomUUID().toString()
+    fun newEventId(): String = randomId()
 
     companion object {
         private const val TAG = "TelemetryRepo"

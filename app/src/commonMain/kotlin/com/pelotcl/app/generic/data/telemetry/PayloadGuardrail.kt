@@ -1,6 +1,6 @@
 package com.pelotcl.app.generic.data.telemetry
 
-import android.util.Log
+import com.pelotcl.app.platform.Log
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
