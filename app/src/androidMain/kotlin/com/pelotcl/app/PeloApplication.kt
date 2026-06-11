@@ -3,9 +3,6 @@ package com.pelotcl.app
 import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import com.pelotcl.app.generic.data.cache.journey.JourneyCache
 import com.pelotcl.app.generic.data.config.AppConfigLoader
 import com.pelotcl.app.generic.data.repository.itinerary.itinerary.RaptorRepository
@@ -13,14 +10,12 @@ import com.pelotcl.app.generic.data.repository.offline.SchedulesRepository
 import com.pelotcl.app.generic.data.telemetry.TelemetryService
 import com.pelotcl.app.generic.service.TransportServiceProvider
 import com.pelotcl.app.generic.utils.graphics.BusIconHelper
-import com.pelotcl.app.generic.worker.TrafficAlertsWorker
-import java.util.concurrent.TimeUnit
+import com.pelotcl.app.platform.BackgroundScheduler
 
 class PeloApplication : Application(), Configuration.Provider {
 
     companion object {
         private const val TAG = "PeloApplication"
-        const val TRAFFIC_ALERTS_WORK_NAME = "traffic_alerts_periodic"
     }
 
     // On-demand WorkManager initialization (replaces automatic ContentProvider init)
@@ -38,7 +33,7 @@ class PeloApplication : Application(), Configuration.Provider {
         verifyRaptorAssets()
         
         TransportServiceProvider.initialize(this)
-        scheduleTrafficAlertsWork()
+        BackgroundScheduler(this).ensureTrafficAlertsScheduled()
         initializeTelemetry()
     }
 
@@ -86,19 +81,5 @@ class PeloApplication : Application(), Configuration.Provider {
                 // JourneyCache may not be initialized yet
             }
         }
-    }
-
-    private fun scheduleTrafficAlertsWork() {
-        // Schedule periodic work (minimum 15 minutes)
-        val workRequest = PeriodicWorkRequestBuilder<TrafficAlertsWorker>(
-            30, TimeUnit.MINUTES
-        ).build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            TRAFFIC_ALERTS_WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
-        Log.i(TAG, "Periodic work scheduled (every 30 minutes)")
     }
 }

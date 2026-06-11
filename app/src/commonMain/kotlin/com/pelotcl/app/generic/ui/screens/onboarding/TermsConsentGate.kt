@@ -4,13 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import com.pelotcl.app.generic.data.config.AppConfigLoader
 import com.pelotcl.app.generic.data.consent.TermsConsentManager
+import com.pelotcl.app.platform.LocalPlatformContext
 
 @Composable
 fun TermsConsentGate(content: @Composable () -> Unit) {
-    val context = LocalContext.current
+    val context = LocalPlatformContext.current
     val config = AppConfigLoader.getConfig().consent
     val legalSections = AppConfigLoader.getConfig().about.legalSections
     val manager = remember(context) { TermsConsentManager(context) }
