@@ -1,14 +1,15 @@
 package com.pelotcl.app.generic.data.consent
 
-import android.content.Context
-import androidx.core.content.edit
+import com.pelotcl.app.platform.PlatformContext
+import com.pelotcl.app.platform.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Clock
 
-class TermsConsentManager(context: Context) {
+class TermsConsentManager(context: PlatformContext) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val settings = Settings(context, PREFS_NAME)
     private val _state = MutableStateFlow(load())
     val state: StateFlow<TermsConsentState> = _state.asStateFlow()
 
@@ -19,7 +20,7 @@ class TermsConsentManager(context: Context) {
         update(
             TermsConsentState(
                 accepted = true,
-                decidedAtEpochMs = System.currentTimeMillis(),
+                decidedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
                 versionAccepted = version
             )
         )
@@ -29,7 +30,7 @@ class TermsConsentManager(context: Context) {
         update(
             TermsConsentState(
                 accepted = false,
-                decidedAtEpochMs = System.currentTimeMillis(),
+                decidedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
                 versionAccepted = null
             )
         )
@@ -37,21 +38,19 @@ class TermsConsentManager(context: Context) {
 
     private fun load(): TermsConsentState {
         return TermsConsentState(
-            accepted = prefs.getBoolean(KEY_ACCEPTED, false),
-            decidedAtEpochMs = prefs.getLong(KEY_DECIDED_AT, 0L).takeIf { it > 0 },
-            versionAccepted = prefs.getInt(KEY_VERSION, -1).takeIf { it >= 0 }
+            accepted = settings.getBoolean(KEY_ACCEPTED, false),
+            decidedAtEpochMs = settings.getLong(KEY_DECIDED_AT, 0L).takeIf { it > 0 },
+            versionAccepted = settings.getInt(KEY_VERSION, -1).takeIf { it >= 0 }
         )
     }
 
     private fun update(new: TermsConsentState) {
-        prefs.edit {
-            putBoolean(KEY_ACCEPTED, new.accepted)
-            putLong(KEY_DECIDED_AT, new.decidedAtEpochMs ?: 0L)
-            if (new.versionAccepted != null) {
-                putInt(KEY_VERSION, new.versionAccepted)
-            } else {
-                remove(KEY_VERSION)
-            }
+        settings.putBoolean(KEY_ACCEPTED, new.accepted)
+        settings.putLong(KEY_DECIDED_AT, new.decidedAtEpochMs ?: 0L)
+        if (new.versionAccepted != null) {
+            settings.putInt(KEY_VERSION, new.versionAccepted)
+        } else {
+            settings.remove(KEY_VERSION)
         }
         _state.value = new
     }

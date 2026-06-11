@@ -1,25 +1,26 @@
 package com.pelotcl.app.generic.data.telemetry
 
-import android.content.Context
-import androidx.core.content.edit
+import com.pelotcl.app.platform.PlatformContext
+import com.pelotcl.app.platform.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Clock
 
 /**
  * Tracks the user's opt-in decision for telemetry collection.
  *
- * Stored in a plain (non-encrypted) SharedPreferences: the value is a boolean preference,
- * not sensitive data. The daily_id and any in-flight events are kept in [DailyIdProvider]
- * (encrypted) and [TelemetryStorage] (filesDir) respectively.
+ * Stored via the plain (non-encrypted) [Settings] abstraction: the value is a boolean
+ * preference, not sensitive data. The daily_id and any in-flight events are kept in
+ * [DailyIdProvider] (encrypted) and [TelemetryStorage] (files) respectively.
  *
  * The schema_version_accepted lets us re-prompt the user if a future breaking change to
- * the payload schema introduces a new category of collected data (e.g., trip detection in
- * Vague 4) — protecting informed consent integrity.
+ * the payload schema introduces a new category of collected data — protecting informed
+ * consent integrity.
  */
-class OptInManager(context: Context) {
+class OptInManager(context: PlatformContext) {
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val settings = Settings(context, PREFS_NAME)
     private val _state = MutableStateFlow(load())
     val state: StateFlow<OptInState> = _state.asStateFlow()
 
@@ -33,7 +34,7 @@ class OptInManager(context: Context) {
         update(
             OptInState(
                 optedIn = true,
-                decidedAtEpochMs = System.currentTimeMillis(),
+                decidedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
                 schemaVersionAccepted = currentSchemaVersion
             )
         )
@@ -43,7 +44,7 @@ class OptInManager(context: Context) {
         update(
             OptInState(
                 optedIn = false,
-                decidedAtEpochMs = System.currentTimeMillis(),
+                decidedAtEpochMs = Clock.System.now().toEpochMilliseconds(),
                 schemaVersionAccepted = null
             )
         )
@@ -60,27 +61,24 @@ class OptInManager(context: Context) {
 
     private fun load(): OptInState {
         return OptInState(
-            optedIn = prefs.getBoolean(KEY_OPTED_IN, false),
-            decidedAtEpochMs = prefs.getLong(KEY_DECIDED_AT, 0L).takeIf { it > 0 },
-            schemaVersionAccepted = prefs.getInt(KEY_SCHEMA_VERSION, -1).takeIf { it >= 0 }
+            optedIn = settings.getBoolean(KEY_OPTED_IN, false),
+            decidedAtEpochMs = settings.getLong(KEY_DECIDED_AT, 0L).takeIf { it > 0 },
+            schemaVersionAccepted = settings.getInt(KEY_SCHEMA_VERSION, -1).takeIf { it >= 0 }
         )
     }
 
     private fun update(new: OptInState) {
-        prefs.edit {
-            putBoolean(KEY_OPTED_IN, new.optedIn)
-            putLong(KEY_DECIDED_AT, new.decidedAtEpochMs ?: 0L)
-            if (new.schemaVersionAccepted != null) {
-                putInt(KEY_SCHEMA_VERSION, new.schemaVersionAccepted)
-            } else {
-                remove(KEY_SCHEMA_VERSION)
-            }
+        settings.putBoolean(KEY_OPTED_IN, new.optedIn)
+        settings.putLong(KEY_DECIDED_AT, new.decidedAtEpochMs ?: 0L)
+        if (new.schemaVersionAccepted != null) {
+            settings.putInt(KEY_SCHEMA_VERSION, new.schemaVersionAccepted)
+        } else {
+            settings.remove(KEY_SCHEMA_VERSION)
         }
         _state.value = new
     }
 
     companion object {
-        private const val TAG = "TelemetryOptIn"
         private const val PREFS_NAME = "telemetry_opt_in"
         private const val KEY_OPTED_IN = "opted_in"
         private const val KEY_DECIDED_AT = "decided_at"
