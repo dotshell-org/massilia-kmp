@@ -23,7 +23,6 @@ kotlin {
     }
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
@@ -55,6 +54,9 @@ kotlin {
 
             // okio — cross-platform file IO + gzip (replaces java.io + java.util.zip)
             implementation(libs.okio)
+
+            // maplibre-compose — Compose Multiplatform map (probe: verifying toolchain compatibility)
+            implementation(libs.maplibre.compose)
 
             // Raptor-KT
             implementation(libs.raptor.kt)
