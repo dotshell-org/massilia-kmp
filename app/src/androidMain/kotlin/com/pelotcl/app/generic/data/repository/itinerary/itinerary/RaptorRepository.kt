@@ -57,6 +57,30 @@ class RaptorRepository private constructor(private val context: Context) {
     private var stopsCache: List<Stop> = emptyList()
     private val mutex = Mutex()
 
+    /**
+     * Bundled `.bin`/JSON assets now live under `commonMain/composeResources/files/`, which
+     * Compose Resources packs into the APK at `assets/composeResources/<resourcePackage>/files/`,
+     * not the assets root. Resolve there (discovering the package directory at runtime) with a
+     * fallback to the raw root. Mirrors `FileSystem.android`.
+     */
+    private val composeResourcesAssetPrefix: String? by lazy {
+        runCatching {
+            context.assets.list("composeResources")?.firstOrNull { it.isNotBlank() }
+        }.getOrNull()?.let { "composeResources/$it/files/" }
+    }
+
+    private fun openAsset(name: String): java.io.InputStream {
+        val prefix = composeResourcesAssetPrefix
+        if (prefix != null) {
+            try {
+                return context.assets.open("$prefix$name")
+            } catch (_: Exception) {
+                // fall through to the raw assets root
+            }
+        }
+        return context.assets.open(name)
+    }
+
     // Generic holiday detector
     private var holidayDetector: HolidayDetector? = null
 
@@ -171,7 +195,7 @@ class RaptorRepository private constructor(private val context: Context) {
                 )
 
                 val missingAssets = requiredAssets.filter { assetName ->
-                    runCatching { context.assets.open(assetName).close() }.isFailure
+                    runCatching { openAsset(assetName).close() }.isFailure
                 }
 
                 if (missingAssets.isNotEmpty()) {
@@ -197,10 +221,10 @@ class RaptorRepository private constructor(private val context: Context) {
                     PeriodData(
                         periodId = periodId,
                         stopsInputStream = BufferedInputStream(
-                            context.assets.open("raptor/stops_$periodId.bin"), 8192
+                            openAsset("raptor/stops_$periodId.bin"), 8192
                         ),
                         routesInputStream = BufferedInputStream(
-                            context.assets.open("raptor/routes_$periodId.bin"), 8192
+                            openAsset("raptor/routes_$periodId.bin"), 8192
                         )
                     )
                 }
@@ -327,7 +351,7 @@ class RaptorRepository private constructor(private val context: Context) {
 
     private fun getRoutesForPeriod(periodId: String): List<Route> {
         return routesByPeriod.getOrPut(periodId) {
-            context.assets.open("raptor/routes_$periodId.bin").use { input ->
+            openAsset("raptor/routes_$periodId.bin").use { input ->
                 NetworkLoader.loadRoutes(BufferedInputStream(input, 8192))
             }
         }
@@ -335,7 +359,7 @@ class RaptorRepository private constructor(private val context: Context) {
 
     private fun getStopsForPeriod(periodId: String): List<Stop> {
         return stopsByPeriod.getOrPut(periodId) {
-            context.assets.open("raptor/stops_$periodId.bin").use { input ->
+            openAsset("raptor/stops_$periodId.bin").use { input ->
                 NetworkLoader.loadStops(BufferedInputStream(input, 8192))
             }
         }
@@ -522,7 +546,7 @@ class RaptorRepository private constructor(private val context: Context) {
             )
 
             requiredAssets.all { assetName ->
-                runCatching { context.assets.open(assetName).close() }.isSuccess
+                runCatching { openAsset(assetName).close() }.isSuccess
             }
         }.getOrDefault(false)
         cachedAssetsAvailable = result
