@@ -6,6 +6,7 @@ import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.utils.geo.GeometryUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -14,7 +15,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import java.util.UUID
+import com.pelotcl.app.platform.randomId
 
 /**
  * Detects the sequence of stops a user passes while navigation is active.
@@ -64,7 +65,7 @@ class TripDetector(
         scope.launch {
             mutex.withLock {
                 active = true
-                tripStartedAtMs = System.currentTimeMillis()
+                tripStartedAtMs = Clock.System.now().toEpochMilliseconds()
                 stopsPassed = mutableListOf()
                 lastFixAtMs = 0
                 lastStopSnapAtMs = 0
@@ -83,7 +84,7 @@ class TripDetector(
      * frequently the OS delivers fixes.
      */
     fun onLocationFix(lat: Double, lng: Double) {
-        val now = System.currentTimeMillis()
+        val now = Clock.System.now().toEpochMilliseconds()
         scope.launch {
             mutex.withLock {
                 if (!active) return@withLock
@@ -133,7 +134,7 @@ class TripDetector(
             val maybeSnapshot: TripSnapshot? = mutex.withLock {
                 if (!active) return@withLock null
                 active = false
-                val endedAt = System.currentTimeMillis()
+                val endedAt = Clock.System.now().toEpochMilliseconds()
                 val passed = stopsPassed.toList()
                 stopsPassed = mutableListOf()
                 lastEmittedStop = null
@@ -186,7 +187,7 @@ class TripDetector(
     private fun emitTripCompleted(trip: TripSnapshot) {
         TelemetryEmitter.emit(
             TelemetryEvent.TripCompleted(
-                eventId = UUID.randomUUID().toString(),
+                eventId = randomId(),
                 at = Clock.System.now().toString(),
                 startedAt = Instant.fromEpochMilliseconds(trip.startedAtMs).toString(),
                 endedAt = Instant.fromEpochMilliseconds(trip.endedAtMs).toString(),
