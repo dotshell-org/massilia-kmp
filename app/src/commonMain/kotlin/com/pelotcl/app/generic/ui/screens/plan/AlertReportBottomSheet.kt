@@ -1,7 +1,6 @@
 package com.pelotcl.app.generic.ui.screens.plan
 
 import kotlinx.datetime.Clock
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,8 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,9 +68,14 @@ import com.pelotcl.app.generic.ui.theme.Red800
 import com.pelotcl.app.generic.ui.theme.Red900
 import com.pelotcl.app.generic.ui.theme.Red950
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
-import com.pelotcl.app.generic.ui.viewmodel.TransportViewModel
-import com.pelotcl.app.generic.utils.graphics.BusIconHelper
+import com.pelotcl.app.generic.ui.viewmodel.TransportViewModelInterface
+import com.pelotcl.app.generic.utils.graphics.LineIconResolver
 import com.pelotcl.app.generic.utils.LineColorHelper
+import com.pelotcl.app.platform.DrawableProvider
+import com.pelotcl.app.platform.LocalPlatformContext
+import com.pelotcl.app.platform.Log
+import com.pelotcl.app.platform.randomId
+import com.pelotcl.app.platform.showToast
 import kotlinx.coroutines.launch
 
 enum class AlertType(val id: String, val label: String, val icon: ImageVector, val color: Color, val isStop: Boolean, val isLine: Boolean) {
@@ -94,13 +96,13 @@ enum class AlertType(val id: String, val label: String, val icon: ImageVector, v
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlertReportBottomSheet(
-    viewModel: TransportViewModel,
+    viewModel: TransportViewModelInterface,
     onDismiss: () -> Unit,
     initialStop: StationSearchResult? = null,
     nearestStopCandidate: StationSearchResult? = null
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val context = LocalPlatformContext.current
     var selectedStop by remember { mutableStateOf<StationSearchResult?>(initialStop) }
     var selectedLine by remember { mutableStateOf<LineSearchResult?>(null) }
     var showSearchFullscreen by remember { mutableStateOf(false) }
@@ -144,7 +146,7 @@ fun AlertReportBottomSheet(
                         .clip(CircleShape)
                         .background(Color.Black)
                         .clickable {
-                            android.util.Log.i("AlertReportBS", "Opening search. Query reset.")
+                            Log.i("AlertReportBS", "Opening search. Query reset.")
                             searchQuery = "" // Reset query when opening
                             showSearchFullscreen = true
                         }
@@ -219,12 +221,18 @@ fun AlertReportBottomSheet(
                     
                     if (selectedLine != null) {
                         val lineName = selectedLine!!.lineName
-                        val iconRes = BusIconHelper.getResourceIdForLine(context, lineName)
+                        val drawableProvider = DrawableProvider(context)
+                        val drawableName = remember(lineName) {
+                            LineIconResolver.getDrawableNameForLineName(lineName)
+                        }
+                        val hasIcon = remember(drawableName, drawableProvider) {
+                            drawableProvider.hasDrawable(drawableName)
+                        }
                         val fallbackColor = Color(LineColorHelper.getColorForLineString(lineName))
 
-                        if (iconRes != 0) {
+                        if (hasIcon) {
                             Image(
-                                painter = painterResource(id = iconRes),
+                                painter = drawableProvider.getPainter(drawableName),
                                 contentDescription = "Ligne $lineName",
                                 modifier = Modifier.size(44.dp)
                             )
@@ -269,7 +277,7 @@ fun AlertReportBottomSheet(
                             alertType = alertType,
                             enabled = true,
                             onClick = {
-                                android.util.Log.i("AlertReportBS", "Alert clicked: ${alertType.id}")
+                                Log.i("AlertReportBS", "Alert clicked: ${alertType.id}")
                                 scope.launch {
                                     val result = submitUserAlert(
                                         alertTypeId = alertType.id,
@@ -282,18 +290,14 @@ fun AlertReportBottomSheet(
                                         // the dataset with failed submissions.
                                         com.pelotcl.app.generic.data.telemetry.TelemetryEmitter.emit(
                                             com.pelotcl.app.generic.data.telemetry.TelemetryEvent.AlertSubmitted(
-                                                eventId = java.util.UUID.randomUUID().toString(),
+                                                eventId = randomId(),
                                                 at = Clock.System.now().toString(),
                                                 kind = alertType.id,
                                                 stopId = selectedStop?.stopName,
                                                 lineId = selectedLine?.lineName
                                             )
                                         )
-                                        Toast.makeText(
-                                            context,
-                                            "Alerte envoyée avec succès",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        showToast(context, "Alerte envoyée avec succès")
                                         onDismiss()
                                     } else {
                                         errorMessage = result.errorMessage
@@ -328,7 +332,7 @@ fun AlertReportBottomSheet(
     if (showSearchFullscreen) {
         androidx.compose.ui.window.Dialog(
             onDismissRequest = { 
-                android.util.Log.i("AlertReportBS", "Search dialog dismissed via onDismissRequest")
+                Log.i("AlertReportBS", "Search dialog dismissed via onDismissRequest")
                 showSearchFullscreen = false 
             },
             properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -352,17 +356,17 @@ fun AlertReportBottomSheet(
                         searchQuery = q
                     },
                     onExpandedChange = { expanded ->
-                        android.util.Log.i("AlertReportBS", "Search expanded change: $expanded")
+                        Log.i("AlertReportBS", "Search expanded change: $expanded")
                         if (!expanded) showSearchFullscreen = false
                     },
                     onStopPrimary = { result ->
-                        android.util.Log.i("AlertReportBS", "Stop selected: ${result.stopName}, id=${result.stopId}")
+                        Log.i("AlertReportBS", "Stop selected: ${result.stopName}, id=${result.stopId}")
                         selectedStop = result
                         selectedLine = null
                         showSearchFullscreen = false
                     },
                     onLineSelected = { result ->
-                        android.util.Log.i("AlertReportBS", "Line selected: ${result.lineName}")
+                        Log.i("AlertReportBS", "Line selected: ${result.lineName}")
                         selectedLine = result
                         selectedStop = null
                         showSearchFullscreen = false
