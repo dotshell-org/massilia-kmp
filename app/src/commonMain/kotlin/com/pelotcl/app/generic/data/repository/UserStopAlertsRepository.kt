@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.repository
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.models.realtime.alerts.community.StopAlertsStatus
 import com.pelotcl.app.generic.data.models.realtime.alerts.community.UserStopAlert
 import com.pelotcl.app.generic.data.models.realtime.alerts.community.UserStopAlertsResponse
@@ -7,7 +9,6 @@ import com.pelotcl.app.generic.utils.search.SearchUtils
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.specific.data.network.LyonKtorClient
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /**
@@ -31,7 +32,7 @@ class UserStopAlertsRepository(
      * Fetch alerts for the given stops.
      */
     suspend fun getUserStopAlerts(stopIds: List<String>): UserStopAlertsResponse =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             if (stopIds.isEmpty()) return@withContext emptyMap()
 
             val requestedStops = stopIds.distinct()

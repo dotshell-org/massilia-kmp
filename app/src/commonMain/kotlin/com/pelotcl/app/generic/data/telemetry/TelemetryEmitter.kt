@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.telemetry
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.config.TelemetryConfigData
 import com.pelotcl.app.generic.data.local_history.LocalHistoryStorage
 import com.pelotcl.app.generic.data.local_history.SessionAuditEntry
@@ -10,7 +12,6 @@ import com.pelotcl.app.platform.randomId
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -25,7 +26,7 @@ import kotlinx.datetime.Clock
  * Lifecycle:
  *  - [initialize] is called once at startup (Android: `PeloApplication.onCreate`).
  *  - After that, all methods are safe to call from any thread; emits are dispatched onto
- *    an internal [Dispatchers.IO] scope to keep call sites non-blocking.
+ *    an internal [ioDispatcher] scope to keep call sites non-blocking.
  *
  * Opt-in gating:
  *  - If the user has not opted in, every emit is a no-op (no allocation beyond the function call).
@@ -61,7 +62,7 @@ object TelemetryEmitter {
             return
         }
 
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
         val optIn = OptInManager(context)
         val dailyIdProvider = DailyIdProvider(context)
         val storage = TelemetryStorage(context)

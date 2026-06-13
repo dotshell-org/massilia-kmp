@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.repository.itinerary.itinerary
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import com.pelotcl.app.platform.FileSystem
@@ -17,7 +19,6 @@ import io.raptor.data.NetworkLoader
 import io.raptor.model.Route
 import io.raptor.model.Stop
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -27,6 +28,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.concurrent.Volatile
+import kotlinx.datetime.isoDayNumber
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -132,7 +134,7 @@ class RaptorRepository private constructor(private val context: PlatformContext)
      * Uses buffered I/O and builds performance indexes.
      * Loads all schedule periods: saturday, sunday, school_on_weekdays, school_off_weekdays
      */
-    suspend fun initialize(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun initialize(): Result<Unit> = withContext(ioDispatcher) {
         // Fast path: already initialized
         if (isInitialized && raptorLibrary != null) {
             return@withContext Result.success(Unit)
@@ -259,7 +261,7 @@ class RaptorRepository private constructor(private val context: PlatformContext)
      * Get the appropriate period ID for a given date
      */
     private fun getPeriodForDate(date: LocalDate): String {
-        val dayOfWeek = date.dayOfWeek.value
+        val dayOfWeek = date.dayOfWeek.isoDayNumber
 
         if (isPublicHoliday(date)) return PERIOD_SUNDAY
 
@@ -305,7 +307,7 @@ class RaptorRepository private constructor(private val context: PlatformContext)
     }
 
     private fun periodForFlags(isSchoolHoliday: Boolean, isPublicHoliday: Boolean): String {
-        val dayOfWeek = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).dayOfWeek.value
+        val dayOfWeek = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).dayOfWeek.isoDayNumber
         if (isPublicHoliday) return PERIOD_SUNDAY
         return when (dayOfWeek) {
             6 -> PERIOD_SATURDAY
@@ -572,7 +574,7 @@ class RaptorRepository private constructor(private val context: PlatformContext)
      * Calculate optimized journeys between origin and destination stops.
      * Uses multi-level cache: Memory LRU -> Disk cache -> Raptor calculation.
      *
-     * Uses Dispatchers.Default (CPU-optimized thread pool) instead of Dispatchers.IO
+     * Uses Dispatchers.Default (CPU-optimized thread pool) instead of ioDispatcher
      * because Raptor algorithm is CPU-bound, not I/O-bound. Default uses all CPU cores
      * while IO is limited to 64 threads optimized for blocking I/O operations.
      *

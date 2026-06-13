@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.cache.journey
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.offline.GzipFileStore
 import com.pelotcl.app.generic.data.repository.itinerary.itinerary.JourneyResult
 import com.pelotcl.app.platform.FileSystem
@@ -7,7 +9,6 @@ import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -91,7 +92,7 @@ class JourneyCache private constructor(context: PlatformContext) {
             }
         }
 
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             val diskResult = readFromDiskPath(getCacheFilePath(cacheKey))
             if (diskResult != null) {
                 memoryMutex.withLock {
@@ -117,11 +118,11 @@ class JourneyCache private constructor(context: PlatformContext) {
 
         memoryMutex.withLock { putMemory(cacheKey, cachedJourney) }
 
-        withContext(Dispatchers.IO) { writeToDisk(cacheKey, serializableJourneys) }
+        withContext(ioDispatcher) { writeToDisk(cacheKey, serializableJourneys) }
     }
 
     /** Preload the most recent disk entries into memory (call at startup). */
-    suspend fun preloadToMemory() = withContext(Dispatchers.IO) {
+    suspend fun preloadToMemory() = withContext(ioDispatcher) {
         checkDateChange()
         try {
             val files = GzipFileStore.list(cacheDir)

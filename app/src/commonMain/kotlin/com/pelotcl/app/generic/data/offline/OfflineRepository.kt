@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.offline
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.data.models.realtime.alerts.official.TrafficAlert
@@ -9,7 +11,6 @@ import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import com.pelotcl.app.platform.Settings
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.decodeFromString
@@ -76,7 +77,7 @@ class OfflineRepository(context: PlatformContext) : ApiOfflineRepository {
      * Saves a page of bus lines, grouping by line name into individual files.
      * Appends to existing files if a line spans multiple pages.
      */
-    suspend fun saveBusLinesPage(lines: List<Feature>) = withContext(Dispatchers.IO) {
+    suspend fun saveBusLinesPage(lines: List<Feature>) = withContext(ioDispatcher) {
         val safeLines = lines.sanitizeForSerialization()
         val grouped = safeLines.groupBy { it.properties.lineName.uppercase() }
         for ((lineName, features) in grouped) {
@@ -112,7 +113,7 @@ class OfflineRepository(context: PlatformContext) : ApiOfflineRepository {
     }
 
     override suspend fun clearStopsCache() {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             GzipFileStore.delete("$offlineDir/$FILE_STOPS")
         }
     }
@@ -222,7 +223,7 @@ class OfflineRepository(context: PlatformContext) : ApiOfflineRepository {
     }
 
     private suspend inline fun <reified T> writeCompressed(fileName: String, data: T) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 GzipFileStore.writeGzip("$offlineDir/$fileName", json.encodeToString(data))
             } catch (e: Exception) {
@@ -232,7 +233,7 @@ class OfflineRepository(context: PlatformContext) : ApiOfflineRepository {
     }
 
     private suspend inline fun <reified T> readCompressed(fileName: String): T? =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val jsonString = GzipFileStore.readGzip("$offlineDir/$fileName")
                 if (jsonString.isNullOrBlank()) null else json.decodeFromString<T>(jsonString)

@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.ui.screens.plan
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.createHttpClientEngine
 import io.ktor.client.HttpClient
 import io.ktor.client.request.post
@@ -7,7 +9,6 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -26,7 +27,7 @@ internal suspend fun submitUserAlert(
     stopName: String?,
     stopIdFallback: Int?,
     lineId: String?
-): UserAlertSubmissionResult = withContext(Dispatchers.IO) {
+): UserAlertSubmissionResult = withContext(ioDispatcher) {
     try {
         val url = "https://api.dotshell.eu/pelo/v1/users-alerts"
         val payload = buildJsonObject {

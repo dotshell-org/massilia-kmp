@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.cache
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.config.AppConfigLoader
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
@@ -12,7 +14,6 @@ import com.pelotcl.app.platform.PlatformContext
 import com.pelotcl.app.platform.Settings
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -111,7 +112,7 @@ class TransportCacheImpl(context: PlatformContext) : TransportCache {
     }
 
     private suspend inline fun <reified T> writeToCompressedFile(fileName: String, data: T) =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 if ((data as? List<*>)?.isEmpty() == true) {
                     Log.w(TAG, "Attempted to write empty data to $fileName, skipping")
@@ -129,7 +130,7 @@ class TransportCacheImpl(context: PlatformContext) : TransportCache {
         }
 
     private suspend inline fun <reified T> readFromCompressedFile(fileName: String): T? =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val jsonString = GzipFileStore.readGzip("$cacheDir/$fileName")
                 if (jsonString.isNullOrBlank()) {
@@ -145,7 +146,7 @@ class TransportCacheImpl(context: PlatformContext) : TransportCache {
         }
 
     private suspend fun invalidateLineCache(fileName: String, timestampKey: String) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             GzipFileStore.delete("$cacheDir/$fileName")
         }
         settings.putLong(timestampKey, 0L)

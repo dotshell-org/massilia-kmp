@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.ui.screens.plan
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.DrawableProvider
 import com.pelotcl.app.platform.LocalPlatformContext
@@ -249,7 +251,7 @@ fun LineDetailsBottomSheet(
             // présente dans uiState (cas des lignes bus/Chrono/JD ajoutées à la volée).
             // getStopsForLine utilise maintenant la table stop_sequences GTFS pour l'ordre.
             try {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     val stops = viewModel.getStopsForLine(
                         lineName = lineInfo.lineName,
                         currentStopName = lineInfo.currentStationName.takeIf { it.isNotBlank() },

@@ -1,10 +1,11 @@
 package com.pelotcl.app.generic.data.local_history
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.FileSystem
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -39,14 +40,14 @@ class LocalHistoryStorage(context: PlatformContext) {
     // ── Trips ────────────────────────────────────────────────────────────────
 
     suspend fun appendTrip(trip: LocalTripRecord) = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val current = readList(FILE_TRIPS, LocalTripRecord.serializer()) ?: emptyList()
             writeList(FILE_TRIPS, current + trip, LocalTripRecord.serializer())
         }
     }
 
     suspend fun readTripsWithinDays(days: Int): List<LocalTripRecord> = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val all = readList(FILE_TRIPS, LocalTripRecord.serializer()) ?: return@withContext emptyList()
             val cutoffMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - days * MS_PER_DAY
             all.filter { it.endedAtEpochMs >= cutoffMs }
@@ -54,7 +55,7 @@ class LocalHistoryStorage(context: PlatformContext) {
     }
 
     suspend fun pruneTripsOlderThan(days: Int) = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val all = readList(FILE_TRIPS, LocalTripRecord.serializer()) ?: return@withContext
             val cutoffMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - days * MS_PER_DAY
             val pruned = all.filter { it.endedAtEpochMs >= cutoffMs }
@@ -67,7 +68,7 @@ class LocalHistoryStorage(context: PlatformContext) {
     // ── Sessions ─────────────────────────────────────────────────────────────
 
     suspend fun appendSession(entry: SessionAuditEntry) = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val current = readList(FILE_SESSIONS, SessionAuditEntry.serializer()) ?: emptyList()
             val updated = (current + entry).takeLast(MAX_SESSIONS)
             writeList(FILE_SESSIONS, updated, SessionAuditEntry.serializer())
@@ -75,7 +76,7 @@ class LocalHistoryStorage(context: PlatformContext) {
     }
 
     suspend fun countSessionsWithinDays(days: Int): Int = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val all = readList(FILE_SESSIONS, SessionAuditEntry.serializer()) ?: return@withContext 0
             val cutoffMs = kotlinx.datetime.Clock.System.now().toEpochMilliseconds() - days * MS_PER_DAY
             all.count { it.openedAtEpochMs >= cutoffMs }
@@ -85,14 +86,14 @@ class LocalHistoryStorage(context: PlatformContext) {
     // ── Favorites audit log ───────────────────────────────────────────────────
 
     suspend fun appendFavoriteAudit(entry: FavoriteAuditEntry) = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val current = readList(FILE_FAVORITES, FavoriteAuditEntry.serializer()) ?: emptyList()
             writeList(FILE_FAVORITES, current + entry, FavoriteAuditEntry.serializer())
         }
     }
 
     suspend fun readFavoritesAudit(): List<FavoriteAuditEntry> = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             readList(FILE_FAVORITES, FavoriteAuditEntry.serializer()) ?: emptyList()
         }
     }
@@ -101,7 +102,7 @@ class LocalHistoryStorage(context: PlatformContext) {
      * Wipe everything — exposed for the "Delete my local history" button in settings.
      */
     suspend fun wipeAll() = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             runCatching { fs.deleteFile("$BASE_DIR/$FILE_TRIPS") }
             runCatching { fs.deleteFile("$BASE_DIR/$FILE_FAVORITES") }
             runCatching { fs.deleteFile("$BASE_DIR/$FILE_SESSIONS") }

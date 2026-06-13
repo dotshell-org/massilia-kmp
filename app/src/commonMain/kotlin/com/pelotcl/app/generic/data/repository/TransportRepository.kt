@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.repository
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.generic.data.models.geojson.Feature
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
 import com.pelotcl.app.generic.data.network.transport.TransportApi
@@ -8,7 +10,6 @@ import com.pelotcl.app.generic.data.repository.api.TransportRepository as ApiTra
 import com.pelotcl.app.generic.utils.network.withRetry
 import com.pelotcl.app.platform.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /**
@@ -24,7 +25,7 @@ class TransportRepository(
      * Fetches all default (non-bus-by-pagination) strong transport line geometries.
      */
     override suspend fun getAllLines(): Result<FeatureCollection> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             runCatching {
                 withRetry(maxRetries = 2, initialDelayMs = 1000) {
                     transportApi.getLines(TransportLinesQuery.StrongLines)
@@ -57,7 +58,7 @@ class TransportRepository(
      * Loads a single line geometry by line name, including non-strong lines.
      */
     override suspend fun getLineByName(lineName: String): Result<List<Feature>> {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             runCatching {
                 transportApi
                     .getLines(TransportLinesQuery.LineByName(lineName))

@@ -1,10 +1,11 @@
 package com.pelotcl.app.generic.data.telemetry
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.FileSystem
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -56,14 +57,14 @@ class TelemetryStorage(context: PlatformContext) {
      * day's final flush succeeded.
      */
     suspend fun reset() = mutex.withLock {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             runCatching { fs.deleteFile("$BASE_DIR/$FILE_STATE") }
             runCatching { fs.deleteFile("$BASE_DIR/$FILE_PENDING") }
         }
     }
 
     private suspend fun <T> readJson(fileName: String, serializer: KSerializer<T>): T? =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val text = fs.readFile("$BASE_DIR/$fileName") ?: return@withContext null
                 json.decodeFromString(serializer, text)
@@ -75,7 +76,7 @@ class TelemetryStorage(context: PlatformContext) {
         }
 
     private suspend fun <T> writeJson(fileName: String, value: T, serializer: KSerializer<T>) =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 val encoded = json.encodeToString(serializer, value)
                 // Write to tmp first, then overwrite target for atomicity

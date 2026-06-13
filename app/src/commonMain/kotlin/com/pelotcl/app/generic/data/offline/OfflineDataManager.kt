@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.data.offline
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
 import com.pelotcl.app.platform.createOfflineTileDownloader
@@ -75,7 +77,7 @@ class OfflineDataManager(
     override suspend fun downloadAllOfflineData() {
         if (_downloadState.value is OfflineDownloadState.Downloading) return
 
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             try {
                 var cumulativeProgress: Float
                 val dataWeight =

@@ -1,5 +1,6 @@
 package com.pelotcl.app.generic.ui.screens.plan.itinerary
 
+import kotlinx.datetime.isoDayNumber
  import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -955,7 +956,7 @@ private fun formatDateDisplay(date: LocalDate?): String {
     return when (date) {
         today -> "Aujourd'hui"
         tomorrow -> "Demain"
-        else -> "${date.dayOfMonth} ${FRENCH_MONTHS[date.month.value - 1]}"
+        else -> "${date.dayOfMonth} ${FRENCH_MONTHS[date.monthNumber - 1]}"
     }
 }
 
@@ -1016,7 +1017,7 @@ fun DatePickerDialog(
                     }
 
                     Text(
-                        text = "${FRENCH_MONTHS[displayedMonth.month.value - 1]} ${displayedMonth.year}",
+                        text = "${FRENCH_MONTHS[displayedMonth.monthNumber - 1]} ${displayedMonth.year}",
                         color = SecondaryColor,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
@@ -1058,7 +1059,7 @@ fun DatePickerDialog(
                 val firstDayOfMonth = displayedMonth
                 val lastDayOfMonth = displayedMonth.plus(1, DateTimeUnit.MONTH).plus(-1, DateTimeUnit.DAY)
                 // Monday = 1, Sunday = 7, we want Monday as first column (index 0)
-                val firstDayOfWeek = (firstDayOfMonth.dayOfWeek.value - 1) // 0 = Monday
+                val firstDayOfWeek = (firstDayOfMonth.dayOfWeek.isoDayNumber - 1) // 0 = Monday
                 val daysInMonth = lastDayOfMonth.dayOfMonth
 
                 // Generate calendar rows (max 6 weeks)

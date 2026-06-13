@@ -99,7 +99,9 @@ fun AllSchedulesSheetContent(
             .map { it.split(":") }
             .filter { it.size == 2 }
             .groupBy({ it[0] }, { it[1] })
-            .toSortedMap()
+            .toList()
+            .sortedBy { it.first }
+            .toMap()
     }
 
     Column(

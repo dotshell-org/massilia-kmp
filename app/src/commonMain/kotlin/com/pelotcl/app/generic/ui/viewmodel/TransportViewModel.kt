@@ -1,5 +1,7 @@
 package com.pelotcl.app.generic.ui.viewmodel
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import androidx.lifecycle.ViewModel
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.platform.PlatformContext
@@ -253,7 +255,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
 
             // Try to load from offline cache first
             val offlineStops = runCatching {
-                withContext(Dispatchers.IO) { offlineRepository.loadStops() }
+                withContext(ioDispatcher) { offlineRepository.loadStops() }
             }.getOrNull().orEmpty()
 
             if (DEBUG_LOGGING) Log.i(TAG, "Loaded ${offlineStops.size} stops from offline cache")
@@ -267,7 +269,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
                 if (emptyDesserteCount > sampleSize * 0.8) {
                     Log.w("TransportViewModel", "Offline cache has mostly empty desserte - forcing refresh from WFS")
                     // Clear the cache and force fresh data load
-                    withContext(Dispatchers.IO) {
+                    withContext(ioDispatcher) {
                         try {
                             offlineRepository.clearStopsCache()
                             if (DEBUG_LOGGING) Log.i(TAG, "Cleared stale stops cache")
@@ -282,7 +284,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
 
             // If offline data is empty, try to get stops from cache
             val cachedStops = runCatching {
-                withContext(Dispatchers.IO) { cache.getStops() }
+                withContext(ioDispatcher) { cache.getStops() }
             }.getOrNull().orEmpty()
 
             if (DEBUG_LOGGING) Log.i(TAG, "Loaded ${cachedStops.size} stops from TransportCache")
@@ -301,7 +303,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
                     // Both caches empty - load from WFS API
                     if (DEBUG_LOGGING) Log.i(TAG, "Both offline cache and TransportCache are empty, loading from WFS API")
                     val wfsResult = runCatching {
-                        withContext(Dispatchers.IO) { transportApi.getTransportStops() }
+                        withContext(ioDispatcher) { transportApi.getTransportStops() }
                     }
                     wfsResult.onFailure { error ->
                         Log.e("TransportViewModel", "Failed to load transport stops from WFS API: ${error.message}", error)
@@ -500,7 +502,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
             // Always save to both stores when we have valid data, regardless of source.
             // Failures are logged but do not break the UI.
             if (stopsWithNames.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     try {
                         offlineRepository.saveStops(stopsWithNames)
                         if (DEBUG_LOGGING) Log.i(TAG, "Saved ${stopsWithNames.size} stops to offline storage")
@@ -786,13 +788,13 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
     }
 
     override fun loadHeadsign(lineName: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _headsigns.value = schedulesRepository.getHeadsigns(resolveScheduleRouteName(lineName))
         }
     }
 
     override fun computeAvailableDirections(lineName: String, stopName: String) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             if (lineName.isBlank() || stopName.isBlank()) {
                 _availableDirections.value = emptyList()
                 return@launch
@@ -819,7 +821,7 @@ class TransportViewModel(private val context: PlatformContext) : ViewModel(), Tr
     }
 
     override fun loadSchedulesForDirection(lineName: String, stopName: String, directionId: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _allSchedules.value = emptyList()
             _nextSchedules.value = emptyList()
 

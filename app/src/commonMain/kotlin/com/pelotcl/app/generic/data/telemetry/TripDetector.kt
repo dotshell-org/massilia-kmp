@@ -1,12 +1,13 @@
 package com.pelotcl.app.generic.data.telemetry
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.Log
 import com.pelotcl.app.generic.data.local_history.LocalTripRecord
 import com.pelotcl.app.generic.data.models.geojson.StopFeature
 import com.pelotcl.app.generic.utils.geo.GeometryUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -40,7 +41,7 @@ import com.pelotcl.app.platform.randomId
  *
  * Thread-safety: a single [Mutex] guards all mutations. Callers are free to invoke from any
  * thread; expensive work (the actual emission + local persistence) runs on
- * [Dispatchers.IO] via the internal [scope].
+ * [ioDispatcher] via the internal [scope].
  */
 class TripDetector(
     private val stops: List<StopFeature>,
@@ -49,7 +50,7 @@ class TripDetector(
     private val stationaryThresholdMs: Long = 10_000L
 ) {
 
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + ioDispatcher)
     private val mutex = Mutex()
 
     private var active: Boolean = false

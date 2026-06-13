@@ -1,5 +1,10 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.pelotcl.app.platform
 
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+import platform.posix.memcpy
 import platform.Foundation.NSBundle
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
@@ -48,14 +53,11 @@ actual class FileSystem actual constructor(private val context: PlatformContext)
         requireNotNull(bundlePath) { "Asset not found: $path" }
         val data = NSData.dataWithContentsOfFile(bundlePath)
             ?: error("Failed to read asset bytes: $path")
-        return data.bytes?.let { ptr ->
-            ByteArray(data.length.toInt()).also { arr ->
-                for (i in arr.indices) {
-                    @Suppress("UNCHECKED_CAST")
-                    arr[i] = (ptr as kotlinx.cinterop.CPointer<kotlinx.cinterop.ByteVar>)[i]
-                }
-            }
-        } ?: ByteArray(0)
+        val length = data.length.toInt()
+        if (length == 0) return ByteArray(0)
+        return ByteArray(length).apply {
+            usePinned { pinned -> memcpy(pinned.addressOf(0), data.bytes, data.length) }
+        }
     }
 
     actual fun assetExists(path: String): Boolean {

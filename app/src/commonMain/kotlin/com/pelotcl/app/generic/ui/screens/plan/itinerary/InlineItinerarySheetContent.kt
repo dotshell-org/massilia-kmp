@@ -2,6 +2,8 @@
 
 package com.pelotcl.app.generic.ui.screens.plan.itinerary
 
+import com.pelotcl.app.platform.ioDispatcher
+
 import com.pelotcl.app.platform.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -151,7 +153,7 @@ fun InlineItinerarySheetContent(
             date: LocalDate,
             blockedNames: Set<String>
         ): List<JourneyResult> {
-            return withContext(Dispatchers.IO) {
+            return withContext(ioDispatcher) {
                 if (timeMode == TimeMode.ARRIVAL) {
                     raptorRepository.getOptimizedPathsArriveBy(
                         originStopIds = originIds,
@@ -333,7 +335,7 @@ fun InlineItinerarySheetContent(
             }
 
             if (journeys.isEmpty() && timeMode == TimeMode.DEPARTURE && date == today) {
-                val hasServiceEarlierToday = withContext(Dispatchers.IO) {
+                val hasServiceEarlierToday = withContext(ioDispatcher) {
                     raptorRepository.getOptimizedPaths(
                         originStopIds = departureStopIds,
                         destinationStopIds = arrivalStopIds,
@@ -414,7 +416,7 @@ fun InlineItinerarySheetContent(
                     "Alert-avoidance input stops (${stopNames.size}): ${stopNames.joinToString()}"
                 )
 
-                val problematicDetails = withContext(Dispatchers.IO) {
+                val problematicDetails = withContext(ioDispatcher) {
                     viewModel.userStopAlertsRepository.getProblematicAlertDetails(stopNames)
                 }
                 val problematicStops = problematicDetails.keys

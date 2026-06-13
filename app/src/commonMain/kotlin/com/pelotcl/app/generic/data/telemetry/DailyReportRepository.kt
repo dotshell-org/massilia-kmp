@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.pelotcl.app.platform.randomId
 import kotlinx.datetime.Clock
+import kotlin.concurrent.Volatile
 
 /**
  * In-memory authoritative view of the current daily report, with debounced persistence

@@ -1,5 +1,7 @@
 package com.pelotcl.app.platform
 
+import kotlinx.coroutines.CoroutineDispatcher
+
 /**
  * Platform context abstraction.
  * On Android this wraps android.content.Context.
@@ -17,3 +19,9 @@ expect fun createHttpClientEngine(): io.ktor.client.engine.HttpClientEngineFacto
  * cannot be resolved. Android: PackageManager versionName. iOS: CFBundleShortVersionString.
  */
 expect fun appVersionName(context: PlatformContext): String
+
+/**
+ * Dispatcher for blocking IO work. Android → Dispatchers.IO; iOS/Native → Dispatchers.Default.
+ * (Dispatchers.IO is JVM-only / internal in commonMain — cf. KMP_IOS_HANDOFF §4.1.)
+ */
+expect val ioDispatcher: CoroutineDispatcher

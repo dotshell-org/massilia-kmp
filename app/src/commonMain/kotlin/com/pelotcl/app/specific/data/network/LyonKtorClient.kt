@@ -336,7 +336,7 @@ class LyonKtorClient(private val baseUrl: String) : TransportApi {
             // Remove accents via basic ASCII folding (KMP-safe, no java.text.Normalizer)
             buildString {
                 for (c in s) {
-                    append(ACCENT_MAP.getOrDefault(c, c))
+                    append(ACCENT_MAP[c] ?: c)
                 }
             }
         }
