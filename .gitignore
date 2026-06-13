@@ -26,3 +26,10 @@ scripts/.venv
 
 .kotlin
 app/build
+
+# iOS / XcodeGen — regenerate the project with:
+#   /tmp/xcodegen-dist/xcodegen/bin/xcodegen generate --spec iosApp/project.yml
+iosApp/iosApp.xcodeproj/
+iosApp/Info.plist
+**/xcuserdata/
+.swiftpm/
