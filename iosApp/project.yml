@@ -54,8 +54,12 @@ targets:
       - name: Copy Compose resources into the app bundle
         basedOnDependencyAnalysis: false
         script: |
-          SRC="$PROJECT_DIR/../app/build/generated/compose/resourceGenerator/preparedResources/commonMain/composeResources/files"
-          DST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/compose-resources/files"
+          # Copy the whole prepared composeResources tree (files/ for FileSystem.ios +
+          # drawable/ + values/ for the Compose Resources `Res` API) into the app bundle,
+          # under the package-prefixed path the iOS Res reader expects:
+          #   <bundle>/compose-resources/composeResources/<packageOfResClass>/...
+          SRC="$PROJECT_DIR/../app/build/generated/compose/resourceGenerator/preparedResources/commonMain/composeResources"
+          DST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/compose-resources/composeResources/com.pelotcl.app.resources"
           if [ -d "$SRC" ]; then
             mkdir -p "$DST"
             rsync -a --delete "$SRC/" "$DST/"

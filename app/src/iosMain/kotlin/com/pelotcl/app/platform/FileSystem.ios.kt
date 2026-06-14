@@ -59,7 +59,9 @@ actual class FileSystem actual constructor(private val context: PlatformContext)
     }
 
     private companion object {
-        const val RESOURCE_ROOT = "compose-resources/files"
+        // Same bundle layout the Compose Resources `Res` API uses on iOS, so one build-phase
+        // copy serves both: <bundle>/compose-resources/composeResources/<packageOfResClass>/files/
+        const val RESOURCE_ROOT = "compose-resources/composeResources/com.pelotcl.app.resources/files"
     }
 
     actual fun filesDir(): String {
