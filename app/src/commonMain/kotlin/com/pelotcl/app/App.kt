@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
 import com.pelotcl.app.generic.data.models.geojson.StopCollection
+import com.pelotcl.app.generic.data.models.itinerary.SelectedStop
 import com.pelotcl.app.generic.data.repository.offline.mapstyle.MapStyleCompat
 import com.pelotcl.app.generic.service.TransportServiceProvider
 import com.pelotcl.app.generic.ui.components.MapCanvas
@@ -48,6 +50,7 @@ import com.pelotcl.app.generic.ui.components.search.TransportSearchBar
 import com.pelotcl.app.generic.ui.screens.Destination
 import com.pelotcl.app.generic.ui.screens.plan.LineDetailsBottomSheet
 import com.pelotcl.app.generic.ui.screens.plan.LineInfo
+import com.pelotcl.app.generic.ui.screens.plan.itinerary.InlineItinerarySheetContent
 import com.pelotcl.app.generic.ui.screens.plan.LinesBottomSheet
 import com.pelotcl.app.generic.ui.screens.settings.SettingsScreen
 import com.pelotcl.app.generic.ui.theme.AccentColor
@@ -158,7 +161,10 @@ private fun RootScaffold(viewModel: TransportViewModel) {
                 selectedDirection = lineDirection,
                 onDirectionChange = { lineDirection = it },
                 onDismiss = { selectedLine = null },
-                onBackToStation = { selectedLine = null },
+                // Tapping a stop sets it as the current station → the sheet loads that stop's
+                // schedules for the selected direction. "Back to station" returns to the stop list.
+                onStopClick = { stopName -> selectedLine = selectedLine?.copy(currentStationName = stopName) },
+                onBackToStation = { selectedLine = selectedLine?.copy(currentStationName = "") },
                 onShowAllSchedules = { _, _, _ -> },
             )
         }
@@ -197,6 +203,33 @@ private fun PlanContent(
     var tappedStopName by remember { mutableStateOf<String?>(null) }
     var searchExpanded by remember { mutableStateOf(false) }
 
+    // Itinerary: arrival = a chosen stop, departure = the nearest stop to the user's location.
+    // The shared InlineItinerarySheetContent then computes and shows the journeys itself.
+    var itineraryArrivalName by remember { mutableStateOf<String?>(null) }
+    var itineraryDeparture by remember { mutableStateOf<SelectedStop?>(null) }
+    var itineraryArrival by remember { mutableStateOf<SelectedStop?>(null) }
+    var itineraryNearby by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(itineraryArrivalName) {
+        val arrivalName = itineraryArrivalName ?: return@LaunchedEffect
+        runCatching { viewModel.raptorRepository.resolveStopIdsByName(arrivalName) }
+            .getOrDefault(emptyList())
+            .takeIf { it.isNotEmpty() }
+            ?.let { itineraryArrival = SelectedStop(name = arrivalName, stopIds = it) }
+        val loc = userLocation
+        if (loc != null) {
+            val nearest = runCatching { viewModel.raptorRepository.findNearestStops(loc.latitude, loc.longitude, 5) }
+                .getOrDefault(emptyList())
+            val names = nearest.map { it.name }.distinct()
+            itineraryNearby = names
+            names.firstOrNull()?.let { depName ->
+                runCatching { viewModel.raptorRepository.resolveStopIdsByName(depName) }
+                    .getOrDefault(emptyList())
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { itineraryDeparture = SelectedStop(name = depName, stopIds = it) }
+            }
+        }
+    }
+
     Box(modifier) {
         MapCanvas(
             modifier = Modifier.fillMaxSize(),
@@ -229,6 +262,31 @@ private fun PlanContent(
         }
     }
 
+    if (itineraryArrivalName != null) {
+        val itinSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val closeItinerary: () -> Unit = {
+            itineraryArrivalName = null
+            itineraryArrival = null
+            itineraryDeparture = null
+            itineraryNearby = emptyList()
+        }
+        ModalBottomSheet(onDismissRequest = closeItinerary, sheetState = itinSheetState) {
+            InlineItinerarySheetContent(
+                viewModel = viewModel,
+                departureStop = itineraryDeparture,
+                arrivalStop = itineraryArrival,
+                maxHeight = 600.dp,
+                nearbyDepartureStops = itineraryNearby,
+                onDepartureFallbackSelected = { itineraryDeparture = it },
+                onJourneysChanged = { },
+                onSelectedJourneyChanged = { },
+                onStartNavigation = { },
+                onClose = closeItinerary,
+                onRequestExpandSheet = { },
+            )
+        }
+    }
+
     tappedStopName?.let { nom ->
         val stop = stops?.firstOrNull { it.properties.nom.equals(nom, ignoreCase = true) }
         val lignes = stop?.properties?.desserte.orEmpty()
@@ -250,6 +308,17 @@ private fun PlanContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
                     )
+                }
+                Button(
+                    onClick = {
+                        itineraryArrival = null
+                        itineraryDeparture = null
+                        itineraryArrivalName = nom
+                        tappedStopName = null
+                    },
+                    modifier = Modifier.padding(top = 12.dp),
+                ) {
+                    Text("Itinéraire vers cet arrêt")
                 }
                 Spacer(Modifier.height(16.dp))
                 when (val deps = departures) {
