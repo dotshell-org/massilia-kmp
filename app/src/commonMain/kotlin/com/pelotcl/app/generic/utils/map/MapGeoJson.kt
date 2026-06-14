@@ -2,7 +2,9 @@ package com.pelotcl.app.generic.utils.map
 
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
 import com.pelotcl.app.generic.data.models.geojson.StopCollection
+import com.pelotcl.app.generic.service.TransportServiceProvider
 import com.pelotcl.app.generic.utils.LineColorHelper
+import com.pelotcl.app.generic.utils.graphics.LineIconResolver
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonArray
 import kotlinx.serialization.json.addJsonObject
@@ -76,3 +78,46 @@ fun StopCollection.toStopsGeoJson(): String = buildJsonObject {
         }
     }
 }.toString()
+
+/**
+ * Like [toStopsGeoJson], but each feature also carries a `stop_priority` derived from the lines
+ * serving the stop (2 = metro/funicular or strong bus, 1 = tram, 0 = ordinary bus). A map can then
+ * reveal stops progressively by zoom (metro always, tram from mid-zoom, bus only when zoomed in),
+ * matching the Android map. Unlike `StopsGeoJsonManager`, this emits every stop once with no
+ * icon-availability gating, so the dots always render even when named map images aren't registered.
+ */
+fun StopCollection.toStopsGeoJsonByPriority(): String {
+    val lineRules = TransportServiceProvider.getTransportLineRules()
+    fun priorityOf(line: String): Int {
+        val upper = line.uppercase()
+        return when {
+            lineRules.isStrongLine(upper) && !upper.startsWith("T") -> 2
+            upper.startsWith("T") -> 1
+            else -> 0
+        }
+    }
+    return buildJsonObject {
+        put("type", "FeatureCollection")
+        putJsonArray("features") {
+            for (stop in features) {
+                val lines = LineIconResolver.parseDesserte(stop.properties.desserte)
+                val priority = if (lines.isEmpty()) 0 else lines.maxOf { priorityOf(it) }
+                addJsonObject {
+                    put("type", "Feature")
+                    put("id", stop.id)
+                    putJsonObject("geometry") {
+                        put("type", "Point")
+                        putJsonArray("coordinates") {
+                            for (coordinate in stop.geometry.coordinates) add(coordinate)
+                        }
+                    }
+                    putJsonObject("properties") {
+                        put("nom", stop.properties.nom)
+                        put("desserte", stop.properties.desserte)
+                        put("stop_priority", priority)
+                    }
+                }
+            }
+        }
+    }.toString()
+}

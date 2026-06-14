@@ -9,13 +9,15 @@ import androidx.compose.ui.unit.dp
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
 import com.pelotcl.app.generic.data.models.geojson.StopCollection
 import com.pelotcl.app.generic.utils.map.toLinesGeoJson
-import com.pelotcl.app.generic.utils.map.toStopsGeoJson
+import com.pelotcl.app.generic.utils.map.toStopsGeoJsonByPriority
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.convertToColor
+import org.maplibre.compose.expressions.dsl.convertToNumber
+import org.maplibre.compose.expressions.dsl.eq
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.LineLayer
@@ -97,21 +99,47 @@ fun MapCanvas(
         }
 
         if (stops != null) {
-            val stopsGeoJson = remember(stops) { stops.toStopsGeoJson() }
+            // Rich stop GeoJSON (same builder Android uses): each feature carries a `stop_priority`
+            // (2 = metro/funicular, 1 = tram, 0 = bus) so stops can be revealed progressively by zoom,
+            // matching Android (bus stops only when zoomed in, tram from mid-zoom, metro always).
+            val stopsGeoJson = remember(stops) { stops.toStopsGeoJsonByPriority() }
             val stopsSource = rememberGeoJsonSource(data = GeoJsonData.JsonString(stopsGeoJson))
+            // Bus stops: only at street-level zoom.
             CircleLayer(
-                id = "transport-stops",
+                id = "transport-stops-bus",
                 source = stopsSource,
+                minZoom = 16f,
+                filter = feature["stop_priority"].convertToNumber() eq const(0),
                 radius = const(3.dp),
+                color = const(Color(0xFF6B7280)),
+                onClick = { features ->
+                    val nom = features.firstOrNull()?.properties?.get("nom")?.jsonPrimitive?.contentOrNull
+                    if (nom != null) { onStopClick(nom); ClickResult.Consume } else ClickResult.Pass
+                },
+            )
+            // Tram stops: from mid zoom.
+            CircleLayer(
+                id = "transport-stops-tram",
+                source = stopsSource,
+                minZoom = 13f,
+                filter = feature["stop_priority"].convertToNumber() eq const(1),
+                radius = const(4.dp),
                 color = const(Color(0xFF1F2937)),
                 onClick = { features ->
                     val nom = features.firstOrNull()?.properties?.get("nom")?.jsonPrimitive?.contentOrNull
-                    if (nom != null) {
-                        onStopClick(nom)
-                        ClickResult.Consume
-                    } else {
-                        ClickResult.Pass
-                    }
+                    if (nom != null) { onStopClick(nom); ClickResult.Consume } else ClickResult.Pass
+                },
+            )
+            // Metro / funicular stops: always visible.
+            CircleLayer(
+                id = "transport-stops-priority",
+                source = stopsSource,
+                filter = feature["stop_priority"].convertToNumber() eq const(2),
+                radius = const(5.dp),
+                color = const(Color(0xFF1F2937)),
+                onClick = { features ->
+                    val nom = features.firstOrNull()?.properties?.get("nom")?.jsonPrimitive?.contentOrNull
+                    if (nom != null) { onStopClick(nom); ClickResult.Consume } else ClickResult.Pass
                 },
             )
         }
