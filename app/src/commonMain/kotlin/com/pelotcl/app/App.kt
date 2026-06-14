@@ -3,15 +3,11 @@
 package com.pelotcl.app
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -19,7 +15,6 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,12 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pelotcl.app.generic.data.config.AppConfigLoader
 import com.pelotcl.app.generic.data.models.geojson.FeatureCollection
 import com.pelotcl.app.generic.data.models.geojson.StopCollection
 import com.pelotcl.app.generic.data.models.itinerary.SelectedStop
+import com.pelotcl.app.generic.data.models.stops.StationInfo
 import com.pelotcl.app.generic.data.models.ui.AllSchedulesInfo
 import com.pelotcl.app.generic.data.repository.itinerary.itinerary.ItineraryPreferencesRepository
 import com.pelotcl.app.generic.data.repository.offline.mapstyle.MapStyleCompat
@@ -64,6 +59,7 @@ import com.pelotcl.app.generic.ui.screens.plan.LineInfo
 import com.pelotcl.app.generic.ui.screens.plan.itinerary.InlineItinerarySheetContent
 import com.pelotcl.app.generic.ui.screens.plan.LinesBottomSheet
 import com.pelotcl.app.generic.ui.screens.plan.MapStyleSelectionSheet
+import com.pelotcl.app.generic.ui.screens.plan.StationSheetContent
 import com.pelotcl.app.generic.ui.screens.settings.ItinerarySettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.OfflineSettingsScreen
 import com.pelotcl.app.generic.ui.screens.settings.SettingsScreen
@@ -74,7 +70,6 @@ import com.pelotcl.app.generic.ui.theme.AccentColor
 import com.pelotcl.app.generic.ui.theme.PeloTheme
 import com.pelotcl.app.generic.ui.theme.PrimaryColor
 import com.pelotcl.app.generic.ui.theme.SecondaryColor
-import com.pelotcl.app.generic.ui.viewmodel.StopDeparturePreview
 import com.pelotcl.app.generic.ui.viewmodel.TransportLinesUiState
 import com.pelotcl.app.generic.ui.viewmodel.TransportStopsUiState
 import com.pelotcl.app.generic.ui.viewmodel.TransportViewModel
@@ -407,63 +402,38 @@ private fun PlanContent(
 
     tappedStopName?.let { nom ->
         val stop = stops?.firstOrNull { it.properties.nom.equals(nom, ignoreCase = true) }
-        val lignes = stop?.properties?.desserte.orEmpty()
-            .split(',')
-            .map { it.trim().substringBefore(':').trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-        var departures by remember(nom) { mutableStateOf<List<StopDeparturePreview>?>(null) }
-        LaunchedEffect(nom) {
-            departures = runCatching { viewModel.getNextDeparturesForStop(nom, lignes) }.getOrDefault(emptyList())
-        }
-        ModalBottomSheet(onDismissRequest = { tappedStopName = null }) {
-            Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 40.dp)) {
-                Text(nom, style = MaterialTheme.typography.titleLarge, color = PrimaryColor)
-                if (lignes.isNotEmpty()) {
-                    Text(
-                        "Lignes : ${lignes.joinToString(", ")}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-                Button(
-                    onClick = {
+        if (stop != null) {
+            val stationInfo = remember(nom) {
+                StationInfo(
+                    nom = stop.properties.nom,
+                    lignes = viewModel.parseLineCodesFromDesserte(stop.properties.desserte),
+                    desserte = stop.properties.desserte,
+                    stopIds = listOf(stop.properties.id),
+                )
+            }
+            val stationSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(onDismissRequest = { tappedStopName = null }, sheetState = stationSheetState) {
+                StationSheetContent(
+                    stationInfo = stationInfo,
+                    viewModel = viewModel,
+                    onDismiss = { tappedStopName = null },
+                    onDepartureClick = { lineName, _, _ ->
+                        tappedStopName = null
+                        onShowLineDetails(lineName)
+                    },
+                    isFavoriteStop = userFavorites.any { it.stopName.equals(nom, ignoreCase = true) },
+                    onToggleFavoriteStop = {
+                        val existing = userFavorites.firstOrNull { it.stopName.equals(nom, ignoreCase = true) }
+                        if (existing != null) viewModel.removeUserFavorite(existing.id) else showAddFavoriteDialog = true
+                    },
+                    onAddFavoriteClick = { showAddFavoriteDialog = true },
+                    onItineraryClick = { stopName ->
                         itineraryArrival = null
                         itineraryDeparture = null
-                        itineraryArrivalName = nom
+                        itineraryArrivalName = stopName
                         tappedStopName = null
                     },
-                    modifier = Modifier.padding(top = 12.dp),
-                ) {
-                    Text("Itinéraire vers cet arrêt")
-                }
-                Spacer(Modifier.height(16.dp))
-                when (val deps = departures) {
-                    null -> Text("Chargement des prochains passages…", style = MaterialTheme.typography.bodyMedium)
-                    else -> if (deps.isEmpty()) {
-                        Text("Aucun passage à venir", style = MaterialTheme.typography.bodyMedium)
-                    } else {
-                        deps.forEach { dep ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    "${dep.lineName}  →  ${dep.directionName}",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(
-                                    dep.nextDeparture,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PrimaryColor,
-                                )
-                            }
-                        }
-                    }
-                }
+                )
             }
         }
     }
