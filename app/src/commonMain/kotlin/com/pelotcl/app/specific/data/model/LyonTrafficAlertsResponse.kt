@@ -9,14 +9,14 @@ import kotlinx.serialization.SerialName
 @Serializable
 data class LyonTrafficAlertsResponse(
     @SerialName("success")
-    val success: Boolean,
+    val success: Boolean = false,
 
     @SerialName("data")
-    val alerts: List<LyonTrafficAlert>,
+    val alerts: List<LyonTrafficAlert> = emptyList(),
 
     @SerialName("timestamp")
-    val timestamp: String,
+    val timestamp: String = "",
 
     @SerialName("lastUpdated")
-    val lastUpdated: String
+    val lastUpdated: String = ""
 )

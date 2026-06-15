@@ -12,47 +12,47 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LyonTrafficAlert(
     @SerialName("cause")
-    val cause: String,
+    val cause: String = "",
 
     @SerialName("debut")
-    val startDate: String,
+    val startDate: String = "",
 
     @SerialName("fin")
-    val endDate: String,
+    val endDate: String = "",
 
     @SerialName("last_update_fme")
-    val lastUpdate: String,
+    val lastUpdate: String = "",
 
     @SerialName("ligne_cli")
-    val lineCode: String,
+    val lineCode: String = "",
 
     @SerialName("ligne_com")
-    val lineName: String,
+    val lineName: String = "",
 
     @SerialName("listeobjet")
-    val objectList: String,
+    val objectList: String = "",
 
     @SerialName("message")
-    val message: String,
+    val message: String = "",
 
     @SerialName("mode")
-    val mode: String,
+    val mode: String = "",
 
     @SerialName("n")
-    val alertNumber: Int,
+    val alertNumber: Int = 0,
 
     @SerialName("niveauseverite")
-    val severityLevel: Int,
+    val severityLevel: Int = 0,
 
     @SerialName("titre")
-    val title: String,
+    val title: String = "",
 
     @SerialName("type")
-    val alertType: String,
+    val alertType: String = "",
 
     @SerialName("typeobjet")
-    val objectType: String,
+    val objectType: String = "",
 
     @SerialName("typeseverite")
-    val severityType: String
+    val severityType: String = ""
 )
