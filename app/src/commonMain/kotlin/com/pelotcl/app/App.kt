@@ -30,7 +30,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -237,43 +236,16 @@ private fun RootScaffold(viewModel: TransportViewModel) {
     val maxSheetHeight = (screenHeightDp - topInset - 220.dp).coerceAtLeast(320.dp)
 
     Box(Modifier.fillMaxSize()) {
-        Scaffold(
-            bottomBar = {
-                NavigationBar(containerColor = PrimaryColor) {
-                    Destination.entries.forEach { destination ->
-                        NavigationBarItem(
-                            selected = when (destination) {
-                                Destination.LINES -> showLinesSheet
-                                Destination.PLAN -> selectedTab == Destination.PLAN && !showLinesSheet
-                                Destination.SETTINGS -> selectedTab == Destination.SETTINGS
-                            },
-                            onClick = {
-                                when (destination) {
-                                    Destination.LINES -> { selectedTab = Destination.PLAN; showLinesSheet = true }
-                                    Destination.PLAN -> { selectedTab = Destination.PLAN; showLinesSheet = false }
-                                    Destination.SETTINGS -> { selectedTab = Destination.SETTINGS; showLinesSheet = false }
-                                }
-                            },
-                            icon = { Icon(destination.icon, contentDescription = destination.contentDescription) },
-                            label = { Text(destination.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = AccentColor,
-                                selectedIconColor = SecondaryColor,
-                                unselectedIconColor = SecondaryColor,
-                                selectedTextColor = SecondaryColor,
-                                unselectedTextColor = SecondaryColor,
-                            ),
-                        )
-                    }
-                }
-            },
-        ) { innerPadding ->
-            val contentModifier = Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding())
+        // Column instead of Scaffold(bottomBar) so the content area (and the BottomSheetScaffold's
+        // sheet) is hard-constrained above the navbar — the sheet's bottom rests on the navbar top
+        // instead of sliding behind it.
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
             if (selectedTab == Destination.SETTINGS) {
                 SettingsTab(viewModel, Modifier.fillMaxSize()) { selectedTab = Destination.PLAN }
             } else {
                 BottomSheetScaffold(
-                    modifier = contentModifier,
+                    modifier = Modifier.fillMaxSize(),
                     scaffoldState = bsScaffoldState,
                     sheetPeekHeight = if (hasSheet) 360.dp else 0.dp,
                     sheetContent = {
@@ -348,6 +320,34 @@ private fun RootScaffold(viewModel: TransportViewModel) {
                         onStopSelected = { showStation(it) },
                         onLineSelected = { showLine(it) },
                         onAddFavoriteClick = { showAddFavoriteDialog = true },
+                    )
+                }
+            }
+            }
+            NavigationBar(containerColor = PrimaryColor) {
+                Destination.entries.forEach { destination ->
+                    NavigationBarItem(
+                        selected = when (destination) {
+                            Destination.LINES -> showLinesSheet
+                            Destination.PLAN -> selectedTab == Destination.PLAN && !showLinesSheet
+                            Destination.SETTINGS -> selectedTab == Destination.SETTINGS
+                        },
+                        onClick = {
+                            when (destination) {
+                                Destination.LINES -> { selectedTab = Destination.PLAN; showLinesSheet = true }
+                                Destination.PLAN -> { selectedTab = Destination.PLAN; showLinesSheet = false }
+                                Destination.SETTINGS -> { selectedTab = Destination.SETTINGS; showLinesSheet = false }
+                            }
+                        },
+                        icon = { Icon(destination.icon, contentDescription = destination.contentDescription) },
+                        label = { Text(destination.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = AccentColor,
+                            selectedIconColor = SecondaryColor,
+                            unselectedIconColor = SecondaryColor,
+                            selectedTextColor = SecondaryColor,
+                            unselectedTextColor = SecondaryColor,
+                        ),
                     )
                 }
             }

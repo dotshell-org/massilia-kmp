@@ -161,7 +161,9 @@ fun MapCanvas(
                 // tram from z13, bus from z16) via minZoom; slot stacks the icons of a multi-line
                 // stop vertically by offset — reproducing Android's stacked line icons.
                 val slots = (-(render.maxIcons - 1)..(render.maxIcons - 1)).toList()
-                val tiers = listOf(2 to 0f, 1 to 13f, 0 to 16f)
+                // Android thresholds: metro/funicular from z12.5 (so they vanish when zoomed out
+                // too far), tram from z14, bus from z17.
+                val tiers = listOf(2 to 12.5f, 1 to 14f, 0 to 17f)
                 for ((priority, minZoom) in tiers) {
                     for (slot in slots) {
                         SymbolLayer(
