@@ -139,7 +139,7 @@ fun MapCanvas(
                         } else {
                             1f
                         }
-                        val height = 19f
+                        val height = 17f
                         return DpSize((height * ratio).dp, height.dp)
                     }
                     val cases = ArrayList<Case<StringValue, ImageValue>>(iconNames.size)
@@ -171,7 +171,9 @@ fun MapCanvas(
                             filter = (feature["stop_priority"].convertToNumber() eq const(priority)) and
                                 (feature["slot"].convertToNumber() eq const(slot)),
                             iconImage = iconImage,
-                            iconOffset = const(DpOffset(0.dp, (slot * 10).dp)),
+                            // slot step is 2, so the gap between adjacent icons is 2 * this value;
+                            // ~= the glyph height so stacked icons touch with no visible gap.
+                            iconOffset = const(DpOffset(0.dp, (slot * 8).dp)),
                             iconAllowOverlap = const(true),
                             onClick = { f -> onStop(f.firstOrNull()?.properties?.get("nom")?.jsonPrimitive?.contentOrNull) },
                         )
