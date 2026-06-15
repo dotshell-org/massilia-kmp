@@ -83,7 +83,7 @@ fun MapCanvas(
     LaunchedEffect(centerOn) {
         if (centerOn != null) {
             cameraState.animateTo(
-                CameraPosition(target = centerOn, zoom = 15.0)
+                CameraPosition(target = centerOn, zoom = 13.0)
             )
         }
     }

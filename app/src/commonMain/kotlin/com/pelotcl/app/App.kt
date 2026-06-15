@@ -334,6 +334,7 @@ private fun RootScaffold(viewModel: TransportViewModel) {
                         showTopBar = !itineraryActive,
                         vehiclesGeoJson = vehiclesGeoJson,
                         vehicleIconName = vehicleIconName,
+                        focusLineName = selectedLine?.lineName,
                         onStopSelected = { showStation(it) },
                         onLineSelected = { showLine(it) },
                         onAddFavoriteClick = { showAddFavoriteDialog = true },
@@ -470,6 +471,7 @@ private fun PlanContent(
     showTopBar: Boolean,
     vehiclesGeoJson: String?,
     vehicleIconName: String?,
+    focusLineName: String?,
     onStopSelected: (String) -> Unit,
     onLineSelected: (String) -> Unit,
     onAddFavoriteClick: () -> Unit,
@@ -489,6 +491,19 @@ private fun PlanContent(
     }
     val strongLines = allLines?.filter { lineRules.isStrongLine(it.properties.lineName) }
 
+    // Move the camera onto the open line so it (and its live vehicles) come into view.
+    val focusCenter: Position? = remember(focusLineName, allLines) {
+        val name = focusLineName ?: return@remember null
+        val feat = allLines?.firstOrNull { it.properties.lineName.equals(name, ignoreCase = true) }
+            ?: return@remember null
+        val points = feat.multiLineStringGeometry.coordinates.flatten()
+        if (points.isEmpty()) return@remember null
+        Position(
+            latitude = points.map { it[1] }.average(),
+            longitude = points.map { it[0] }.average(),
+        )
+    }
+
     Box(Modifier.fillMaxSize()) {
         MapCanvas(
             modifier = Modifier.fillMaxSize(),
@@ -496,6 +511,7 @@ private fun PlanContent(
             initialLatitude = 45.75,
             initialLongitude = 4.85,
             initialZoom = 12.0,
+            centerOn = focusCenter,
             lines = strongLines?.let { FeatureCollection(features = it) },
             stops = stops?.let { StopCollection(features = it) },
             userLocation = userLocation,
