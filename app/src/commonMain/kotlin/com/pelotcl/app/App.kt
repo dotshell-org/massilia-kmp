@@ -71,6 +71,9 @@ import com.pelotcl.app.generic.ui.components.MapCanvas
 import com.pelotcl.app.generic.ui.components.favorites.AddFavoriteDialog
 import com.pelotcl.app.generic.ui.components.favorites.FavoritesBar
 import com.pelotcl.app.generic.ui.components.search.TransportSearchBar
+import com.pelotcl.app.generic.data.repository.offline.search.SearchHistoryRepository
+import com.pelotcl.app.generic.data.repository.offline.search.SearchHistoryItem
+import com.pelotcl.app.generic.data.repository.offline.search.SearchType
 import com.pelotcl.app.generic.ui.screens.Destination
 import com.pelotcl.app.generic.ui.screens.plan.AllSchedulesSheetContent
 import com.pelotcl.app.generic.ui.screens.plan.LineDetailsBottomSheet
@@ -518,6 +521,8 @@ private fun PlanContent(
     onItinerarySelected: (String) -> Unit,
 ) {
     val context = LocalPlatformContext.current
+    val searchHistoryRepo = remember { SearchHistoryRepository(context) }
+    var searchHistory by remember { mutableStateOf(searchHistoryRepo.getSearchHistory()) }
     val linesState by viewModel.uiState.collectAsState()
     val lineRules = remember { TransportServiceProvider.getTransportLineRules() }
     val mapStyleRepo = remember { MapStyleRepository(context, TransportServiceProvider.getMapStyleConfig()) }
@@ -569,6 +574,15 @@ private fun PlanContent(
                         onStopPrimary = { result -> onStopSelected(result.stopName, result.stopId, result.lines) },
                         onStopSecondary = { result -> onItinerarySelected(result.stopName) },
                         onLineSelected = { line -> onLineSelected(line.lineName) },
+                        searchHistory = searchHistory,
+                        onAddToHistory = { item ->
+                            searchHistoryRepo.addToHistory(item)
+                            searchHistory = searchHistoryRepo.getSearchHistory()
+                        },
+                        onRemoveFromHistory = { query, type ->
+                            searchHistoryRepo.removeFromHistory(query, type)
+                            searchHistory = searchHistoryRepo.getSearchHistory()
+                        },
                     )
                     if (!searchExpanded) {
                         FavoritesBar(
