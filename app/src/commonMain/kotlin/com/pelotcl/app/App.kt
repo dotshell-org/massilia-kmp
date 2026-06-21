@@ -418,6 +418,41 @@ private fun RootScaffold(
                         null
                     }
 
+                    val focusZoom: Double? = remember(selectedLine?.lineName, selectedStation?.nom, stops, linesUiState) {
+                        val st = selectedStation
+                        if (st != null) {
+                            return@remember 15.5
+                        }
+                        val ln = selectedLine?.lineName
+                        if (ln != null) {
+                            val allLines = when (val s = linesUiState) {
+                                is TransportLinesUiState.Success -> s.lines
+                                is TransportLinesUiState.PartialSuccess -> s.lines
+                                else -> null
+                            }
+                            val feat = allLines?.firstOrNull { it.properties.lineName.equals(ln, ignoreCase = true) }
+                            if (feat != null) {
+                                val points = feat.multiLineStringGeometry.coordinates.flatten()
+                                if (points.isNotEmpty()) {
+                                    val lats = points.map { it[1] }
+                                    val lons = points.map { it[0] }
+                                    val latMin = lats.minOrNull() ?: 45.75
+                                    val latMax = lats.maxOrNull() ?: 45.75
+                                    val lonMin = lons.minOrNull() ?: 4.85
+                                    val lonMax = lons.maxOrNull() ?: 4.85
+                                    val latDiff = latMax - latMin
+                                    val lonDiff = lonMax - lonMin
+                                    val span = maxOf(latDiff, lonDiff)
+                                    if (span > 0.0001) {
+                                        val log2Val = kotlin.math.log2(360.0 / span)
+                                        return@remember (log2Val - 1.2).coerceIn(9.5, 15.0)
+                                    }
+                                }
+                            }
+                        }
+                        null
+                    }
+
                     PlanContent(
                         viewModel = viewModel,
                         stops = planStops,
@@ -427,6 +462,7 @@ private fun RootScaffold(
                         vehiclesGeoJson = vehiclesGeoJson,
                         vehicleIconName = vehicleIconName,
                         focusCenter = focusCenter,
+                        focusZoom = focusZoom,
                         selectedLineName = selectedLineName,
                         onStopSelected = { name, id, lines -> showStation(name, id, lines) },
                         onLineSelected = { showLine(it) },
@@ -566,6 +602,7 @@ private fun PlanContent(
     vehiclesGeoJson: String?,
     vehicleIconName: String?,
     focusCenter: Position?,
+    focusZoom: Double?,
     selectedLineName: String?,
     onStopSelected: (String, Int?, List<String>) -> Unit,
     onLineSelected: (String) -> Unit,
@@ -617,6 +654,7 @@ private fun PlanContent(
             initialLongitude = 4.85,
             initialZoom = 12.0,
             centerOn = focusCenter,
+            focusZoom = focusZoom,
             lines = mapLines?.let { FeatureCollection(features = it) },
             stops = stops?.let { StopCollection(features = it) },
             userLocation = userLocation,
@@ -705,7 +743,8 @@ private fun PlanContent(
                                  Icon(
                                      Icons.Filled.Layers,
                                      contentDescription = "Style de carte",
-                                     tint = SecondaryColor
+                                     tint = SecondaryColor,
+                                     modifier = Modifier.size(20.dp)
                                  )
                              }
 

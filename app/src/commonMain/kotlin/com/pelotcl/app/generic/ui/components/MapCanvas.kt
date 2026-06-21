@@ -82,6 +82,7 @@ fun MapCanvas(
     onLineClick: (lineName: String) -> Unit = {},
     onVehicleClick: (lineName: String) -> Unit = {},
     centerOn: Position? = null,
+    focusZoom: Double? = null,
 ) {
     val fallbackPainter = remember {
         object : Painter() {
@@ -92,10 +93,11 @@ fun MapCanvas(
         }
     }
 
-    LaunchedEffect(centerOn) {
+    LaunchedEffect(centerOn, focusZoom) {
         if (centerOn != null) {
+            val targetZoom = focusZoom ?: 13.0
             cameraState.animateTo(
-                CameraPosition(target = centerOn, zoom = 13.0)
+                CameraPosition(target = centerOn, zoom = targetZoom)
             )
         }
     }
