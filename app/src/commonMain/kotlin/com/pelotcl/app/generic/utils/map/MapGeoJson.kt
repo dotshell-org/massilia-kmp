@@ -141,46 +141,45 @@ fun StopCollection.toStopsGeoJsonByPriority(
         putJsonArray("features") {
             for (stop in mergedStops) {
                 val lines = LineIconResolver.parseDesserte(stop.properties.desserte)
-                val isSelectedBusServingStop = upperSelected != null &&
-                    lines.any { it.uppercase() == upperSelected } &&
-                    (lineRules.getTransportType(upperSelected) !in listOf("METRO", "TRAM", "FUNICULAR"))
-
                 val icons = ArrayList<Pair<String, Int>>()
 
-                // 1. Metro / Tram / Funicular
-                for (line in lines) {
-                    val upper = line.uppercase()
-                    val type = lineRules.getTransportType(line)
-                    val isMetroTramFun = type == "METRO" || type == "TRAM" || type == "FUNICULAR"
-                    if (isMetroTramFun && (lineRules.isStrongLine(upper) || (upperSelected != null && upper == upperSelected))) {
-                        val priority = if (upper.startsWith("T")) 1 else 2
-                        val name = LineIconResolver.getDrawableNameForLineName(line)
-                        if (hasDrawable(name)) icons.add(name to priority)
-                    }
-                }
-
-                // 2. Selected bus line (shows generic mode icon with priority 2 so it is visible)
-                if (isSelectedBusServingStop) {
-                    val mode = lineRules.getModeIcon(upperSelected) ?: "mode_bus"
-                    if (hasDrawable(mode)) {
-                        icons.add(mode to 2)
-                    }
-                }
-
-                // 3. Other weak lines/modes (shows generic mode icon with priority 0, hidden unless zoomed in)
-                val uniqueModes = lines
-                    .filterNot {
-                        val type = lineRules.getTransportType(it)
+                if (upperSelected != null) {
+                    val isServedBySelected = lines.any { it.uppercase() == upperSelected }
+                    if (isServedBySelected) {
+                        val type = lineRules.getTransportType(upperSelected)
                         val isMetroTramFun = type == "METRO" || type == "TRAM" || type == "FUNICULAR"
-                        isMetroTramFun || (upperSelected != null && it.uppercase() == upperSelected)
+                        if (isMetroTramFun) {
+                            val priority = if (upperSelected.startsWith("T")) 1 else 2
+                            val name = LineIconResolver.getDrawableNameForLineName(selectedLineName)
+                            if (hasDrawable(name)) {
+                                icons.add(name to priority)
+                            }
+                        } else {
+                            val mode = lineRules.getModeIcon(upperSelected) ?: "mode_bus"
+                            if (hasDrawable(mode)) {
+                                icons.add(mode to 2)
+                            }
+                        }
                     }
-                    .mapNotNull { lineRules.getModeIcon(it) }
-                    .distinct()
-                for (mode in uniqueModes) {
-                    if (isSelectedBusServingStop && mode == (lineRules.getModeIcon(upperSelected) ?: "mode_bus")) {
-                        continue
+                } else {
+                    // 1. Metro / Tram / Funicular
+                    for (line in lines) {
+                        val upper = line.uppercase()
+                        if (lineRules.isStrongLine(upper)) {
+                            val priority = if (upper.startsWith("T")) 1 else 2
+                            val name = LineIconResolver.getDrawableNameForLineName(line)
+                            if (hasDrawable(name)) icons.add(name to priority)
+                        }
                     }
-                    if (hasDrawable(mode)) icons.add(mode to 0)
+
+                    // 2. Other weak lines/modes
+                    val uniqueModes = lines
+                        .filterNot { lineRules.isStrongLine(it.uppercase()) }
+                        .mapNotNull { lineRules.getModeIcon(it) }
+                        .distinct()
+                    for (mode in uniqueModes) {
+                        if (hasDrawable(mode)) icons.add(mode to 0)
+                    }
                 }
                 if (icons.isEmpty()) continue
                 val coordinates = stop.geometry.coordinates
