@@ -301,6 +301,14 @@ private fun RootScaffold(
     LaunchedEffect(sheetContentKey) {
         if (hasSheet) bottomSheetState.expand() else bottomSheetState.hide()
     }
+    LaunchedEffect(bottomSheetState.currentValue) {
+        if (bottomSheetState.currentValue == SheetValue.Hidden) {
+            closeSheet()
+            if (itineraryActive) {
+                closeItinerary()
+            }
+        }
+    }
 
     // Cap the expanded sheet so its top stays just BELOW the top buttons (search/favorites),
     // and let shorter content size itself naturally so its scroll fills to the bottom.
