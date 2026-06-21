@@ -178,10 +178,10 @@ fun MapCanvas(
                     val cases = ArrayList<Case<StringValue, ImageValue>>(iconNames.size)
                     for (name in iconNames) {
                         val painter = drawableProvider.getPainter(name)
-                        cases.add(case(name, image(painter, glyphDpSize(painter, 17f, scaleForRatio = true))))
+                        cases.add(case(name, image(painter, glyphDpSize(painter, 17f))))
                     }
                     val firstPainter = drawableProvider.getPainter(iconNames.first())
-                    val fallback = image(firstPainter, glyphDpSize(firstPainter, 17f, scaleForRatio = true))
+                    val fallback = image(firstPainter, glyphDpSize(firstPainter, 17f))
                     switch(feature["icon"].convertToString(), *cases.toTypedArray(), fallback = fallback)
                 }
 
@@ -290,17 +290,12 @@ fun MapCanvas(
  * A [DpSize] that rasterizes [painter] at a fixed [heightDp] with width proportional to the
  * painter's intrinsic aspect ratio (clamped), so glyphs keep their shape instead of squishing.
  */
-private fun glyphDpSize(painter: Painter, heightDp: Float, scaleForRatio: Boolean = false): DpSize {
+private fun glyphDpSize(painter: Painter, heightDp: Float): DpSize {
     val size = painter.intrinsicSize
     val ratio = if (size.isSpecified && size.width > 0f && size.height > 0f) {
         (size.width / size.height).coerceIn(0.4f, 2.5f)
     } else {
         1f
     }
-    val adjustedHeight = if (scaleForRatio && ratio > 1.2f) {
-        heightDp * (1.2f / ratio).coerceAtLeast(0.6f)
-    } else {
-        heightDp
-    }
-    return DpSize((adjustedHeight * ratio).dp, adjustedHeight.dp)
+    return DpSize((heightDp * ratio).dp, heightDp.dp)
 }
