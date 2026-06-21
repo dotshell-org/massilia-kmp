@@ -76,6 +76,7 @@ fun MapCanvas(
     userLocation: Position? = null,
     vehiclesGeoJson: String? = null,
     vehicleIconName: String? = null,
+    selectedLineName: String? = null,
     interactive: Boolean = true,
     onStopClick: (stopName: String) -> Unit = {},
     onLineClick: (lineName: String) -> Unit = {},
@@ -111,7 +112,7 @@ fun MapCanvas(
 
         val context = LocalPlatformContext.current
         val drawableProvider = remember(context) { DrawableProvider(context) }
-        val render = remember(stops) { stops?.toStopsGeoJsonByPriority { drawableProvider.hasDrawable(it) } }
+        val render = remember(stops, selectedLineName) { stops?.toStopsGeoJsonByPriority(selectedLineName) { drawableProvider.hasDrawable(it) } }
         val stopsSource = rememberGeoJsonSource(data = GeoJsonData.JsonString(render?.geoJson ?: """{"type":"FeatureCollection","features":[]}"""))
 
         val itinerarySource = rememberGeoJsonSource(data = GeoJsonData.JsonString(itineraryGeoJson ?: """{"type":"FeatureCollection","features":[]}"""))
@@ -134,12 +135,21 @@ fun MapCanvas(
                 source = lineSource,
                 color = feature["color"].convertToColor(),
                 width = const(3.dp),
+                onClick = { features ->
+                    val lineName = features.firstOrNull()?.properties?.get("lineName")?.jsonPrimitive?.contentOrNull
+                    if (lineName != null) {
+                        onLineClick(lineName)
+                        ClickResult.Consume
+                    } else {
+                        ClickResult.Pass
+                    }
+                },
             )
             // Thick invisible lines to make selecting them much easier on touch screens
             LineLayer(
                 id = "transport-lines-tap",
                 source = lineSource,
-                color = const(Color.Transparent),
+                color = const(Color(0x01000000)), // Tiny alpha to ensure MapLibre hit-tests it
                 width = const(24.dp),
                 onClick = { features ->
                     val lineName = features.firstOrNull()?.properties?.get("lineName")?.jsonPrimitive?.contentOrNull
@@ -168,10 +178,10 @@ fun MapCanvas(
                     val cases = ArrayList<Case<StringValue, ImageValue>>(iconNames.size)
                     for (name in iconNames) {
                         val painter = drawableProvider.getPainter(name)
-                        cases.add(case(name, image(painter, glyphDpSize(painter, 17f))))
+                        cases.add(case(name, image(painter, glyphDpSize(painter, 17f, scaleForRatio = true))))
                     }
                     val firstPainter = drawableProvider.getPainter(iconNames.first())
-                    val fallback = image(firstPainter, glyphDpSize(firstPainter, 17f))
+                    val fallback = image(firstPainter, glyphDpSize(firstPainter, 17f, scaleForRatio = true))
                     switch(feature["icon"].convertToString(), *cases.toTypedArray(), fallback = fallback)
                 }
 
@@ -280,12 +290,17 @@ fun MapCanvas(
  * A [DpSize] that rasterizes [painter] at a fixed [heightDp] with width proportional to the
  * painter's intrinsic aspect ratio (clamped), so glyphs keep their shape instead of squishing.
  */
-private fun glyphDpSize(painter: Painter, heightDp: Float): DpSize {
+private fun glyphDpSize(painter: Painter, heightDp: Float, scaleForRatio: Boolean = false): DpSize {
     val size = painter.intrinsicSize
     val ratio = if (size.isSpecified && size.width > 0f && size.height > 0f) {
         (size.width / size.height).coerceIn(0.4f, 2.5f)
     } else {
         1f
     }
-    return DpSize((heightDp * ratio).dp, heightDp.dp)
+    val adjustedHeight = if (scaleForRatio && ratio > 1.2f) {
+        heightDp * (1.2f / ratio).coerceAtLeast(0.6f)
+    } else {
+        heightDp
+    }
+    return DpSize((adjustedHeight * ratio).dp, adjustedHeight.dp)
 }

@@ -163,6 +163,17 @@ private fun RootScaffold(
     val stopsUiState by viewModel.stopsUiState.collectAsState()
     val userFavorites by viewModel.userFavorites.collectAsState(initial = emptyList())
     val stops = (stopsUiState as? TransportStopsUiState.Success)?.stops
+    val selectedLineName = selectedLine?.lineName
+    val planStops = remember(stops, selectedLineName) {
+        if (selectedLineName.isNullOrBlank()) {
+            stops
+        } else {
+            stops?.filter { stop ->
+                viewModel.parseLineCodesFromDesserte(stop.properties.desserte)
+                    .any { it.equals(selectedLineName, ignoreCase = true) }
+            }
+        }
+    }
 
     var userLocation by remember { mutableStateOf<Position?>(null) }
     val locationProvider = remember { LocationProvider(context) }
@@ -375,13 +386,14 @@ private fun RootScaffold(
 
                     PlanContent(
                         viewModel = viewModel,
-                        stops = stops,
+                        stops = planStops,
                         userLocation = userLocation,
                         userFavorites = userFavorites,
                         showTopBar = !itineraryActive,
                         vehiclesGeoJson = vehiclesGeoJson,
                         vehicleIconName = vehicleIconName,
                         focusCenter = focusCenter,
+                        selectedLineName = selectedLineName,
                         onStopSelected = { name, id, lines -> showStation(name, id, lines) },
                         onLineSelected = { showLine(it) },
                         onAddFavoriteClick = { showAddFavoriteDialog = true },
@@ -520,6 +532,7 @@ private fun PlanContent(
     vehiclesGeoJson: String?,
     vehicleIconName: String?,
     focusCenter: Position?,
+    selectedLineName: String?,
     onStopSelected: (String, Int?, List<String>) -> Unit,
     onLineSelected: (String) -> Unit,
     onAddFavoriteClick: () -> Unit,
@@ -544,6 +557,18 @@ private fun PlanContent(
         else -> null
     }
     val strongLines = allLines?.filter { lineRules.isStrongLine(it.properties.lineName) }
+    val mapLines = remember(strongLines, selectedLineName, allLines) {
+        if (allLines == null) return@remember null
+        val strongs = strongLines ?: emptyList()
+        val selected = if (!selectedLineName.isNullOrBlank()) {
+            allLines.firstOrNull { it.properties.lineName.equals(selectedLineName, ignoreCase = true) }
+        } else null
+        if (selected != null && !strongs.contains(selected)) {
+            strongs + selected
+        } else {
+            strongs
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         MapCanvas(
@@ -553,11 +578,12 @@ private fun PlanContent(
             initialLongitude = 4.85,
             initialZoom = 12.0,
             centerOn = focusCenter,
-            lines = strongLines?.let { FeatureCollection(features = it) },
+            lines = mapLines?.let { FeatureCollection(features = it) },
             stops = stops?.let { StopCollection(features = it) },
             userLocation = userLocation,
             vehiclesGeoJson = vehiclesGeoJson,
             vehicleIconName = vehicleIconName,
+            selectedLineName = selectedLineName,
             onStopClick = { nom -> onStopSelected(nom, null, emptyList()) },
             onLineClick = { lineName -> onLineSelected(lineName) },
             onVehicleClick = { lineName -> onLineSelected(lineName) },

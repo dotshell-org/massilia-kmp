@@ -125,13 +125,17 @@ class StopsRenderData(val geoJson: String, val iconNames: Set<String>, val maxIc
  * render; [hasDrawable] only decides which `icon` name to attach (and is collected for image
  * registration). Returns the distinct icon names so the caller can build an `iconImage` expression.
  */
-fun StopCollection.toStopsGeoJsonByPriority(hasDrawable: (String) -> Boolean): StopsRenderData {
+fun StopCollection.toStopsGeoJsonByPriority(
+    selectedLineName: String? = null,
+    hasDrawable: (String) -> Boolean
+): StopsRenderData {
     val lineRules = TransportServiceProvider.getTransportLineRules()
     val iconNames = LinkedHashSet<String>()
     // Merge strong-line stops sharing a name into one point (like Android) so a multi-line station
     // is a single marker rather than a cluster of overlapping platform stops.
     val mergedStops = StopsGeoJsonManager.mergeStopsByName(features)
     var maxIcons = 1
+    val upperSelected = selectedLineName?.uppercase()
     val json = buildJsonObject {
         put("type", "FeatureCollection")
         putJsonArray("features") {
@@ -142,14 +146,14 @@ fun StopCollection.toStopsGeoJsonByPriority(hasDrawable: (String) -> Boolean): S
                 val icons = ArrayList<Pair<String, Int>>()
                 for (line in lines) {
                     val upper = line.uppercase()
-                    if (lineRules.isStrongLine(upper)) {
+                    if (lineRules.isStrongLine(upper) || (upperSelected != null && upper == upperSelected)) {
                         val priority = if (upper.startsWith("T")) 1 else 2
                         val name = LineIconResolver.getDrawableNameForLineName(line)
                         if (hasDrawable(name)) icons.add(name to priority)
                     }
                 }
                 val uniqueModes = lines
-                    .filterNot { lineRules.isStrongLine(it.uppercase()) }
+                    .filterNot { lineRules.isStrongLine(it.uppercase()) || (upperSelected != null && it.uppercase() == upperSelected) }
                     .mapNotNull { lineRules.getModeIcon(it) }
                     .distinct()
                 for (mode in uniqueModes) {
