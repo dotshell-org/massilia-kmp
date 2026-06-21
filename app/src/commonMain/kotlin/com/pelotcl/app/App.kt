@@ -237,6 +237,10 @@ private fun RootScaffold(
         viewModel.selectLine(name); lineDirection = 0
         selectedLine = LineInfo(lineName = name, currentStationName = ""); selectedStation = null; allSchedules = null
     }
+    fun showLineAtStation(lineName: String, stationName: String) {
+        viewModel.selectLine(lineName); lineDirection = 0
+        selectedLine = LineInfo(lineName = lineName, currentStationName = stationName); selectedStation = null; allSchedules = null
+    }
     fun startItinerary(name: String) {
         closeSheet()
         itineraryArrival = null; itineraryDeparture = null
@@ -321,12 +325,13 @@ private fun RootScaffold(
                                     onShowAllSchedules = { lineName, directionName, schedules ->
                                         allSchedules = AllSchedulesInfo(lineName = lineName, directionName = directionName, schedules = schedules)
                                     },
+                                    onItineraryClick = { name -> startItinerary(name) },
                                 )
                                 st != null -> StationSheetContent(
                                     stationInfo = st,
                                     viewModel = viewModel,
                                     onDismiss = closeSheet,
-                                    onDepartureClick = { lineName, _, _ -> showLine(lineName) },
+                                    onDepartureClick = { lineName, _, _ -> showLineAtStation(lineName, st.nom) },
                                     isFavoriteStop = userFavorites.any { it.stopName.equals(st.nom, ignoreCase = true) },
                                     onToggleFavoriteStop = {
                                         val existing = userFavorites.firstOrNull { it.stopName.equals(st.nom, ignoreCase = true) }

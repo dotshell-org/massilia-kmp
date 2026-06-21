@@ -128,11 +128,19 @@ fun MapCanvas(
         val userSource = rememberGeoJsonSource(data = GeoJsonData.JsonString(userLocationGeoJson))
 
         if (lines != null) {
+            // Thin visible lines
             LineLayer(
                 id = "transport-lines",
                 source = lineSource,
                 color = feature["color"].convertToColor(),
                 width = const(3.dp),
+            )
+            // Thick invisible lines to make selecting them much easier on touch screens
+            LineLayer(
+                id = "transport-lines-tap",
+                source = lineSource,
+                color = const(Color.Transparent),
+                width = const(24.dp),
                 onClick = { features ->
                     val lineName = features.firstOrNull()?.properties?.get("lineName")?.jsonPrimitive?.contentOrNull
                     if (lineName != null) {
