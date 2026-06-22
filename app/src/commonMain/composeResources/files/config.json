@@ -279,7 +279,9 @@
       "D",
       "F1",
       "F2",
-      "RX"
+      "RX",
+      "TB11",
+      "TB12"
     ],
     "strongLineRegexes": [
       "^T\\d{1,2}$",
