@@ -343,7 +343,8 @@ private fun RootScaffold(
     val windowInfo = LocalWindowInfo.current
     val screenHeightDp = with(density) { windowInfo.containerSize.height.toDp() }
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val maxSheetHeight = (screenHeightDp - topInset - 220.dp).coerceAtLeast(320.dp)
+    val topMargin = if (itineraryActive) 80.dp else 200.dp
+    val maxSheetHeight = minOf(1600.dp, screenHeightDp - topInset - topMargin).coerceAtLeast(130.dp)
 
     Box(Modifier.fillMaxSize()) {
         // Column instead of Scaffold(bottomBar) so the content area (and the BottomSheetScaffold's
@@ -357,7 +358,7 @@ private fun RootScaffold(
                 BottomSheetScaffold(
                     modifier = Modifier.fillMaxSize(),
                     scaffoldState = bsScaffoldState,
-                    sheetPeekHeight = if (hasSheet) 360.dp else 0.dp,
+                    sheetPeekHeight = if (hasSheet) 130.dp else 0.dp,
                     sheetContent = {
                         // Cap the height so the sheet top stays below the search/favorites bar; shorter
                         // content keeps its natural height so its scroll fills to the bottom.
@@ -370,7 +371,7 @@ private fun RootScaffold(
                                     viewModel = viewModel,
                                     departureStop = itineraryDeparture,
                                     arrivalStop = itineraryArrival,
-                                    maxHeight = 600.dp,
+                                    maxHeight = maxSheetHeight,
                                     nearbyDepartureStops = itineraryNearby,
                                     onDepartureFallbackSelected = { itineraryDeparture = it },
                                     onJourneysChanged = { activeJourneys = it },

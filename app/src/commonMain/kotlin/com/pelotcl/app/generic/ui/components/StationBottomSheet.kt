@@ -127,7 +127,6 @@ fun StationBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 480.dp)
             ) {
                 // Nom de la station
                 Row(

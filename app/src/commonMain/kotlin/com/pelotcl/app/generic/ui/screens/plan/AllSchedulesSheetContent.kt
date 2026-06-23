@@ -107,7 +107,6 @@ fun AllSchedulesSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(max = 480.dp)
             .padding(horizontal = 24.dp)
     ) {
         Row(
