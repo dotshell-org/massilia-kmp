@@ -29,15 +29,23 @@ targets:
         CFBundleVersion: "1"
         CADisableMinimumFrameDurationOnPhone: true
         UILaunchScreen: {}
+        UIRequiresFullScreen: false
         NSLocationWhenInUseUsageDescription: "Pelo utilise votre position pour centrer la carte et calculer des itinéraires."
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pelotcl.app
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+        FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) ../app/build/bin/iosArm64/debugFramework
+        FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]: $(inherited) ../app/build/bin/iosSimulatorArm64/debugFramework
     dependencies:
       - framework: ../app/build/bin/iosSimulatorArm64/debugFramework/ComposeApp.framework
         embed: false

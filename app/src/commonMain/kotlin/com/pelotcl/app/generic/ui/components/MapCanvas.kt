@@ -130,7 +130,7 @@ fun MapCanvas(
         }
         val userSource = rememberGeoJsonSource(data = GeoJsonData.JsonString(userLocationGeoJson))
 
-        if (lines != null) {
+        if (lines != null && itineraryGeoJson == null) {
             // Thin visible lines
             LineLayer(
                 id = "transport-lines",
@@ -252,11 +252,22 @@ fun MapCanvas(
         }
 
         if (itineraryGeoJson != null) {
+            // Transit legs
             LineLayer(
-                id = "itinerary",
+                id = "itinerary-transit",
                 source = itinerarySource,
+                filter = feature["isWalking"].convertToString() eq const("no"),
                 color = feature["color"].convertToColor(),
-                width = const(6.dp),
+                width = const(3.dp),
+            )
+            // Walking legs (dashed)
+            LineLayer(
+                id = "itinerary-walking",
+                source = itinerarySource,
+                filter = feature["isWalking"].convertToString() eq const("yes"),
+                color = feature["color"].convertToColor(),
+                width = const(3.dp),
+                dasharray = const(listOf(2.0, 2.0)),
             )
         }
 

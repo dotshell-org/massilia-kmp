@@ -88,6 +88,8 @@ import com.pelotcl.app.generic.data.repository.offline.mapstyle.MapStyleReposito
 import com.pelotcl.app.generic.service.TransportServiceProvider
 import com.pelotcl.app.generic.utils.graphics.LineIconResolver
 import com.pelotcl.app.generic.utils.map.toVehiclesGeoJson
+import com.pelotcl.app.generic.utils.map.toItinerariesGeoJson
+import com.pelotcl.app.generic.data.repository.itinerary.itinerary.JourneyResult
 import com.pelotcl.app.generic.ui.components.MapCanvas
 import com.pelotcl.app.generic.ui.components.favorites.AddFavoriteDialog
 import com.pelotcl.app.generic.ui.components.favorites.FavoritesBar
@@ -245,6 +247,15 @@ private fun RootScaffold(
 
     // Itinerary mode: two search fields at the top + a non-blocking results sheet.
     var itineraryActive by remember { mutableStateOf(false) }
+    var activeJourneys by remember { mutableStateOf<List<JourneyResult>>(emptyList()) }
+    var selectedJourney by remember { mutableStateOf<JourneyResult?>(null) }
+    val itineraryGeoJson = remember(activeJourneys, selectedJourney) {
+        if (activeJourneys.isNotEmpty()) {
+            toItinerariesGeoJson(activeJourneys, selectedJourney, viewModel)
+        } else {
+            null
+        }
+    }
     var itineraryDeparture by remember { mutableStateOf<SelectedStop?>(null) }
     var itineraryArrival by remember { mutableStateOf<SelectedStop?>(null) }
     var itineraryNearby by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -277,6 +288,8 @@ private fun RootScaffold(
         itineraryDeparture = null
         itineraryArrivalSeed = null
         itineraryNearby = emptyList()
+        activeJourneys = emptyList()
+        selectedJourney = null
         onNavigationModeChanged(false)
     }
     fun showStation(name: String, stopId: Int? = null, searchLines: List<String> = emptyList()) {
@@ -360,8 +373,8 @@ private fun RootScaffold(
                                     maxHeight = 600.dp,
                                     nearbyDepartureStops = itineraryNearby,
                                     onDepartureFallbackSelected = { itineraryDeparture = it },
-                                    onJourneysChanged = { },
-                                    onSelectedJourneyChanged = { },
+                                    onJourneysChanged = { activeJourneys = it },
+                                    onSelectedJourneyChanged = { selectedJourney = it },
                                     onStartNavigation = {
                                         onNavigationModeChanged(true)
                                     },
@@ -411,7 +424,27 @@ private fun RootScaffold(
                         }
                     },
                 ) {
-                    val focusCenter: Position? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState) {
+                    val focusCenter: Position? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState, itineraryActive, activeJourneys, selectedJourney) {
+                        if (itineraryActive && activeJourneys.isNotEmpty()) {
+                            val journeysToDraw = selectedJourney?.let { listOf(it) } ?: activeJourneys
+                            val lats = mutableListOf<Double>()
+                            val lons = mutableListOf<Double>()
+                            for (journey in journeysToDraw) {
+                                for (leg in journey.legs) {
+                                    lats.add(leg.fromLat)
+                                    lons.add(leg.fromLon)
+                                    lats.add(leg.toLat)
+                                    lons.add(leg.toLon)
+                                    for (stop in leg.intermediateStops) {
+                                        lats.add(stop.lat)
+                                        lons.add(stop.lon)
+                                    }
+                                }
+                            }
+                            if (lats.isNotEmpty()) {
+                                return@remember Position(latitude = lats.average(), longitude = lons.average())
+                            }
+                        }
                         val stName = selectedStation?.nom ?: selectedLine?.currentStationName
                         if (!stName.isNullOrBlank()) {
                             val stop = stops?.firstOrNull { it.properties.nom.equals(stName, ignoreCase = true) }
@@ -440,7 +473,37 @@ private fun RootScaffold(
                         null
                     }
 
-                    val focusZoom: Double? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState) {
+                    val focusZoom: Double? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState, itineraryActive, activeJourneys, selectedJourney) {
+                        if (itineraryActive && activeJourneys.isNotEmpty()) {
+                            val journeysToDraw = selectedJourney?.let { listOf(it) } ?: activeJourneys
+                            val lats = mutableListOf<Double>()
+                            val lons = mutableListOf<Double>()
+                            for (journey in journeysToDraw) {
+                                for (leg in journey.legs) {
+                                    lats.add(leg.fromLat)
+                                    lons.add(leg.fromLon)
+                                    lats.add(leg.toLat)
+                                    lons.add(leg.toLon)
+                                    for (stop in leg.intermediateStops) {
+                                        lats.add(stop.lat)
+                                        lons.add(stop.lon)
+                                    }
+                                }
+                            }
+                            if (lats.isNotEmpty()) {
+                                val latMin = lats.minOrNull() ?: 45.75
+                                val latMax = lats.maxOrNull() ?: 45.75
+                                val lonMin = lons.minOrNull() ?: 4.85
+                                val lonMax = lons.maxOrNull() ?: 4.85
+                                val latDiff = latMax - latMin
+                                val lonDiff = lonMax - lonMin
+                                val span = maxOf(latDiff, lonDiff)
+                                if (span > 0.0001) {
+                                    val log2Val = kotlin.math.log2(360.0 / span)
+                                    return@remember (log2Val - 1.2).coerceIn(9.5, 15.0)
+                                }
+                            }
+                        }
                         val stName = selectedStation?.nom ?: selectedLine?.currentStationName
                         if (!stName.isNullOrBlank()) {
                             return@remember 17.0
@@ -485,9 +548,10 @@ private fun RootScaffold(
                         vehicleIconName = vehicleIconName,
                         focusCenter = focusCenter,
                         focusZoom = focusZoom,
-                        selectedLineName = selectedLineName,
-                        onStopSelected = { name, id, lines -> showStation(name, id, lines) },
-                        onLineSelected = { showLine(it) },
+                        selectedLineName = selectedLine?.lineName,
+                        itineraryGeoJson = itineraryGeoJson,
+                        onStopSelected = { nom, id, lns -> showStation(nom, id, lns) },
+                        onLineSelected = { name -> showLine(name) },
                         onAddFavoriteClick = { showAddFavoriteDialog = true },
                         onItinerarySelected = { name -> startItinerary(name) },
                     )
@@ -626,6 +690,7 @@ private fun PlanContent(
     focusCenter: Position?,
     focusZoom: Double?,
     selectedLineName: String?,
+    itineraryGeoJson: String?,
     onStopSelected: (String, Int?, List<String>) -> Unit,
     onLineSelected: (String) -> Unit,
     onAddFavoriteClick: () -> Unit,
@@ -684,6 +749,7 @@ private fun PlanContent(
             vehiclesGeoJson = vehiclesGeoJson,
             vehicleIconName = vehicleIconName,
             selectedLineName = selectedLineName,
+            itineraryGeoJson = itineraryGeoJson,
             onStopClick = { nom -> onStopSelected(nom, null, emptyList()) },
             onLineClick = { lineName -> onLineSelected(lineName) },
             onVehicleClick = { lineName -> onLineSelected(lineName) },
