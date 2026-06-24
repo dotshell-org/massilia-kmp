@@ -1,6 +1,7 @@
 package eu.dotshell.pelo.generic.ui.screens.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,26 +9,42 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,12 +63,40 @@ fun TelemetrySettingsScreen(
     onWipeHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showWipeConfirmDialog by remember { mutableStateOf(false) }
+
     val prettyJson = remember {
         Json {
             prettyPrint = true
             prettyPrintIndent = "  "
             encodeDefaults = true
         }
+    }
+
+    if (showWipeConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showWipeConfirmDialog = false },
+            title = { Text("Supprimer l'historique ?") },
+            text = { Text("Voulez-vous vraiment supprimer tout votre historique local (favoris et trajets) ? Cette action est irréversible.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onWipeHistory()
+                        showWipeConfirmDialog = false
+                    }
+                ) {
+                    Text("Oui", color = Color(0xFFEF4444))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWipeConfirmDialog = false }) {
+                    Text("Non", color = SecondaryColor)
+                }
+            },
+            containerColor = Color(0xFF1C1C1E),
+            titleContentColor = SecondaryColor,
+            textContentColor = Color.Gray
+        )
     }
 
     Scaffold(
@@ -88,11 +133,11 @@ fun TelemetrySettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Wipe history button at the top
+            // Compact delete history button
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onWipeHistory),
+                    .clickable(onClick = { showWipeConfirmDialog = true }),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -102,38 +147,29 @@ fun TelemetrySettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Supprimer mon historique local",
-                            color = Color(0xFFEF4444),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Trajets et favoris (stockés uniquement sur votre appareil)",
-                            color = Color.Gray,
-                            fontSize = 13.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Supprimer l'historique local",
+                        color = Color(0xFFEF4444),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-            HorizontalDivider(color = Color(0xFF3A3A3C))
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
                 text = "Données collectées aujourd'hui",
                 color = SecondaryColor,
                 fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-            )
-            Text(
-                text = "État exact en mémoire, tel qu'il sera envoyé à la prochaine fermeture de l'app.",
-                color = Color.Gray,
-                fontSize = 13.sp,
+                fontSize = 18.sp,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
 
@@ -141,11 +177,46 @@ fun TelemetrySettingsScreen(
 
             when (snapshot) {
                 null -> InfoCard(
-                    title = "Aucune donnée collectée aujourd'hui",
-                    body = "Soit le partage de données anonymes est désactivé, soit aucun événement n'a encore été enregistré."
+                    title = "Aucune donnée",
+                    body = "Aucun événement n'a encore été enregistré."
                 )
                 else -> {
-                    MetadataCard(state = snapshot)
+                    // Compact Side-by-Side Metadata Cards
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF3B82F6), modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(text = snapshot.day, color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(text = "${snapshot.events.size} évènements", color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(12.dp))
                     EventBreakdownCard(events = snapshot.events)
                     Spacer(Modifier.height(12.dp))
@@ -159,63 +230,15 @@ fun TelemetrySettingsScreen(
 }
 
 @Composable
-private fun MetadataCard(state: DailyReportState) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C1E)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Identité de la journée", color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-            Spacer(Modifier.height(8.dp))
-            MetadataRow("Identifiant journalier", state.dailyId)
-            MetadataRow("Jour local", state.day)
-            MetadataRow("Réseau", state.networkCode)
-            MetadataRow("Version de l'app", state.appVersion)
-            MetadataRow("Schéma", "v${state.schemaVersion}")
-            MetadataRow("Dernière modification", state.lastModifiedAt)
-            MetadataRow("Sessions de la journée", state.sessions.size.toString())
-            MetadataRow("Événements en attente", state.events.size.toString())
-        }
-    }
-}
-
-@Composable
-private fun MetadataRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-    ) {
-        Text(
-            text = label,
-            color = Color.Gray,
-            fontSize = 13.sp,
-            modifier = Modifier.weight(0.5f)
-        )
-        Text(
-            text = value,
-            color = SecondaryColor,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.weight(0.5f)
-        )
-    }
-}
-
-@Composable
 private fun EventBreakdownCard(events: List<TelemetryEvent>) {
-    if (events.isEmpty()) {
-        InfoCard(
-            title = "Aucun événement aujourd'hui",
-            body = "L'application n'a encore rien à signaler. Continuez à utiliser Pelo normalement."
-        )
-        return
-    }
-    val countsByKind = events.groupingBy { it::class.simpleName ?: "Unknown" }.eachCount()
-        .entries.sortedByDescending { it.value }
+    if (events.isEmpty()) return
+
+    val grouped = events.groupBy { eventShortLabel(it::class.simpleName ?: "Unknown") }
+        .map { (label, list) ->
+            val firstEvent = list.first()
+            val (icon, color) = eventIconAndColor(firstEvent::class.simpleName ?: "Unknown")
+            Triple(label, icon, list.size)
+        }
 
     Card(
         modifier = Modifier
@@ -225,10 +248,18 @@ private fun EventBreakdownCard(events: List<TelemetryEvent>) {
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Répartition des événements", color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            Text("Événements", color = SecondaryColor, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
             Spacer(Modifier.height(8.dp))
-            countsByKind.forEach { (kind, count) ->
-                MetadataRow(kindLabel(kind), count.toString())
+            grouped.forEach { (label, icon, count) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(icon, contentDescription = null, tint = SecondaryColor.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(label, color = SecondaryColor, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Text("$count", color = SecondaryColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
             }
         }
     }
@@ -278,18 +309,20 @@ private fun InfoCard(title: String, body: String) {
     }
 }
 
-private fun kindLabel(simpleName: String): String = when (simpleName) {
-    "SessionOpened" -> "Ouvertures de session"
-    "SessionClosed" -> "Fermetures de session"
-    "SearchStop" -> "Recherches d'arrêt"
-    "SearchLine" -> "Recherches de ligne"
-    "SearchItinerary" -> "Recherches d'itinéraire"
-    "ItineraryCalculated" -> "Itinéraires calculés"
-    "ItineraryChosen" -> "Itinéraires choisis"
-    "TripCompleted" -> "Trajets effectués"
-    "LineClicked" -> "Clics sur lignes"
-    "StopClicked" -> "Clics sur arrêts"
-    "AlertSubmitted" -> "Alertes signalées"
-    "AlertRead" -> "Alertes officielles lues"
+private fun eventIconAndColor(simpleName: String): Pair<ImageVector, Color> = when (simpleName) {
+    "SessionOpened", "SessionClosed" -> Icons.Default.AccountCircle to Color(0xFF9CA3AF)
+    "SearchStop", "StopClicked" -> Icons.Default.Place to Color(0xFFEF4444)
+    "SearchLine", "LineClicked" -> Icons.Default.Map to Color(0xFF3B82F6)
+    "SearchItinerary", "ItineraryCalculated", "ItineraryChosen" -> Icons.Default.Directions to Color(0xFFF59E0B)
+    "AlertSubmitted", "AlertRead" -> Icons.Default.Warning to Color(0xFFF59E0B)
+    else -> Icons.Default.Notifications to Color(0xFF9CA3AF)
+}
+
+private fun eventShortLabel(simpleName: String): String = when (simpleName) {
+    "SessionOpened", "SessionClosed" -> "Sessions"
+    "SearchStop", "StopClicked" -> "Arrêts"
+    "SearchLine", "LineClicked" -> "Lignes"
+    "SearchItinerary", "ItineraryCalculated", "ItineraryChosen" -> "Itinéraires"
+    "AlertSubmitted", "AlertRead" -> "Alertes"
     else -> simpleName
 }
