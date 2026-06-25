@@ -376,6 +376,10 @@
     ],
     "vehicleMarkers": [
       {
+        "prefix": "RX",
+        "marker": "TRAM"
+      },
+      {
         "prefix": "TB",
         "marker": "BUS"
       },
