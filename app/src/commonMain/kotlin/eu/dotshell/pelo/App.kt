@@ -917,58 +917,60 @@ private fun PlanContent(
                 sheetContent()
             }
         ) {
-            Log.i("PeloApp", "PlanContent: before MapCanvas")
-            MapCanvas(
-                modifier = Modifier.fillMaxSize(),
-                styleUrl = selectedMapStyle.styleUrl,
-                initialLatitude = 45.75,
-                initialLongitude = 4.85,
-                initialZoom = 12.0,
-                centerOn = focusCenter,
-                focusZoom = focusZoom,
-                lines = mapLines?.let { FeatureCollection(features = it) },
-                stops = filteredStopsCollection,
-                userLocation = userLocation,
-                vehiclesGeoJson = vehiclesGeoJson,
-                vehicleIconName = vehicleIconName,
-                selectedLineName = selectedLineName,
-                itineraryGeoJson = itineraryGeoJson,
-                onStopClick = { nom -> onStopSelected(nom, null, emptyList()) },
-                onLineClick = { lineName -> onLineSelected(lineName) },
-                onVehicleClick = { lineName -> onLineSelected(lineName) },
-                onMapMoved = onFabReset,
-            )
-        }
+            Box(Modifier.fillMaxSize()) {
+                Log.i("PeloApp", "PlanContent: before MapCanvas")
+                MapCanvas(
+                    modifier = Modifier.fillMaxSize(),
+                    styleUrl = selectedMapStyle.styleUrl,
+                    initialLatitude = 45.75,
+                    initialLongitude = 4.85,
+                    initialZoom = 12.0,
+                    centerOn = focusCenter,
+                    focusZoom = focusZoom,
+                    lines = mapLines?.let { FeatureCollection(features = it) },
+                    stops = filteredStopsCollection,
+                    userLocation = userLocation,
+                    vehiclesGeoJson = vehiclesGeoJson,
+                    vehicleIconName = vehicleIconName,
+                    selectedLineName = selectedLineName,
+                    itineraryGeoJson = itineraryGeoJson,
+                    onStopClick = { nom -> onStopSelected(nom, null, emptyList()) },
+                    onLineClick = { lineName -> onLineSelected(lineName) },
+                    onVehicleClick = { lineName -> onLineSelected(lineName) },
+                    onMapMoved = onFabReset,
+                )
 
-        if (!showAlertReport) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 16.dp)
-                    .size(56.dp)
-                    .background(Color.Black, CircleShape)
-                    .clickable { onFabClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isCenteredOnUser) {
-                    Icon(
-                        painter = fabDrawableProvider.getPainter("add_triangle_24px"),
-                        contentDescription = "Signaler une alerte",
-                        tint = Color(0xFFFACC15),
-                        modifier = Modifier.size(30.dp)
-                    )
-                } else {
-                    Canvas(modifier = Modifier.size(18.dp)) {
-                        val radius = size.minDimension / 2f
-                        drawCircle(
-                            color = Color(0xFF3B82F6),
-                            radius = radius
-                        )
-                        drawCircle(
-                            color = Color.White,
-                            radius = radius,
-                            style = Stroke(width = 3.dp.toPx())
-                        )
+                if (!showAlertReport) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = sheetPeekHeight + 16.dp)
+                            .size(56.dp)
+                            .background(Color.Black, CircleShape)
+                            .clickable { onFabClick() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isCenteredOnUser) {
+                            Icon(
+                                painter = fabDrawableProvider.getPainter("add_triangle_24px"),
+                                contentDescription = "Signaler une alerte",
+                                tint = Color(0xFFFACC15),
+                                modifier = Modifier.size(30.dp)
+                            )
+                        } else {
+                            Canvas(modifier = Modifier.size(18.dp)) {
+                                val radius = size.minDimension / 2f
+                                drawCircle(
+                                    color = Color(0xFF3B82F6),
+                                    radius = radius
+                                )
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = radius,
+                                    style = Stroke(width = 3.dp.toPx())
+                                )
+                            }
+                        }
                     }
                 }
             }

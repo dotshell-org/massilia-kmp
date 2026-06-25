@@ -72,6 +72,18 @@ class MainActivity : ComponentActivity() {
             )
         )
 
+        // Request location permissions if they are not already granted
+        val locationPermissions = arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        val missingPermissions = locationPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (missingPermissions.isNotEmpty()) {
+            requestPermissions(missingPermissions.toTypedArray(), 1001)
+        }
+
         setContent {
             CompositionLocalProvider(eu.dotshell.pelo.platform.LocalPlatformContext provides this@MainActivity) {
                 NotificationPermissionGate {
