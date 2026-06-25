@@ -102,15 +102,10 @@ fun InlineItinerarySheetContent(
     val rxLineEnabled = remember { itineraryPrefsRepo.isRxLineEnabled() }
 
     // Build set of blocked route names based on user preferences
-    // For JD lines, we need to block all possible JD line numbers (JD1-JD999)
-    // since the Raptor library does exact matching, not prefix matching
     val blockedRouteNames = remember(jdLinesEnabled, rxLineEnabled) {
         buildSet {
             if (!jdLinesEnabled) {
-                // Add all possible JD line patterns
-                for (i in 1..999) {
-                    add("JD$i")
-                }
+                add("JD*")
             }
             if (!rxLineEnabled) add("RX")
         }
