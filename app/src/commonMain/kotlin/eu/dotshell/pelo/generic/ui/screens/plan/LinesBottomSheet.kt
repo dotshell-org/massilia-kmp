@@ -201,7 +201,7 @@ fun LinesBottomSheet(
                 when (item) {
                     is CategoryItem -> {
                         Column {
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = item.category,
                                 style = MaterialTheme.typography.titleMedium,
@@ -209,7 +209,7 @@ fun LinesBottomSheet(
                                 color = PrimaryColor,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp, bottom = 8.dp)
+                                    .padding(top = 4.dp, bottom = 4.dp)
                             )
                         }
                     }
@@ -217,7 +217,7 @@ fun LinesBottomSheet(
                     is CategoryLinesItem -> {
                         // On calcule l'espacement pour justifier à gauche et à droite,
                         // et on applique le même espacement à la dernière ligne.
-                        val itemWidth = 80.dp
+                        val itemWidth = 72.dp
                         androidx.compose.foundation.layout.BoxWithConstraints(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -314,13 +314,13 @@ private fun LineChip(
 
     Box(
         modifier = modifier
-            .height(80.dp),
+            .height(50.dp),
         contentAlignment = Alignment.Center
     ) {
         // Content Box with clipping and click
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(64.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
@@ -330,7 +330,7 @@ private fun LineChip(
                 Icon(
                     painter = drawableProvider.getPainter(drawableName),
                     contentDescription = "Ligne $lineName",
-                    modifier = Modifier.size(72.dp),
+                    modifier = Modifier.size(64.dp),
                     tint = Color.Unspecified
                 )
             } else {

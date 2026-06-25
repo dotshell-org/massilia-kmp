@@ -132,6 +132,7 @@ import eu.dotshell.pelo.generic.ui.viewmodel.TransportViewModel
 import eu.dotshell.pelo.generic.ui.viewmodel.findStopByCoordinates
 import eu.dotshell.pelo.generic.utils.location.LocationProvider
 import eu.dotshell.pelo.platform.DrawableProvider
+import eu.dotshell.pelo.platform.BackHandler
 import eu.dotshell.pelo.platform.LocalPlatformContext
 import eu.dotshell.pelo.platform.Log
 import eu.dotshell.pelo.platform.appVersionName
@@ -234,6 +235,8 @@ private fun RootScaffold(
 
     var isCenteredOnUser by remember { mutableStateOf(false) }
     var manualFocusCenter by remember { mutableStateOf<Position?>(null) }
+    var manualFocusZoom by remember { mutableStateOf<Double?>(null) }
+    var hasFocusedOnLive by remember { mutableStateOf(false) }
 
     val availableDirections by viewModel.availableDirections.collectAsState(initial = emptyList())
     val headsigns by viewModel.headsigns.collectAsState(initial = emptyMap())
@@ -277,6 +280,40 @@ private fun RootScaffold(
             if (isLiveTrackingEnabled) vehiclePositions else emptyList()
         } else {
             if (isGlobalLiveEnabled) globalVehiclePositions else emptyList()
+        }
+    }
+
+    LaunchedEffect(isGlobalLiveEnabled, isLiveTrackingEnabled) {
+        if (!isGlobalLiveEnabled && !isLiveTrackingEnabled) {
+            hasFocusedOnLive = false
+            manualFocusCenter = null
+            manualFocusZoom = null
+        }
+    }
+
+    LaunchedEffect(isGlobalLiveEnabled, isLiveTrackingEnabled, activeVehiclePositions) {
+        if ((isGlobalLiveEnabled || isLiveTrackingEnabled) && !hasFocusedOnLive && activeVehiclePositions.isNotEmpty()) {
+            val lats = activeVehiclePositions.map { it.latitude }
+            val lons = activeVehiclePositions.map { it.longitude }
+            val center = Position(latitude = lats.average(), longitude = lons.average())
+
+            val latMin = lats.minOrNull() ?: 45.75
+            val latMax = lats.maxOrNull() ?: 45.75
+            val lonMin = lons.minOrNull() ?: 4.85
+            val lonMax = lons.maxOrNull() ?: 4.85
+            val latDiff = latMax - latMin
+            val lonDiff = lonMax - lonMin
+            val span = maxOf(latDiff, lonDiff)
+            val zoom = if (span > 0.0001) {
+                val log2Val = kotlin.math.log2(360.0 / span)
+                (log2Val - 1.5).coerceIn(9.5, 14.5)
+            } else {
+                13.5
+            }
+
+            manualFocusCenter = center
+            manualFocusZoom = zoom
+            hasFocusedOnLive = true
         }
     }
 
@@ -506,7 +543,8 @@ private fun RootScaffold(
                         lastFocusCenter.value = computedFocusCenter
                     }
 
-                    val focusZoom: Double? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState, itineraryActive, activeJourneys, selectedJourney, manualFocusCenter) {
+                    val focusZoom: Double? = remember(selectedLine?.lineName, selectedLine?.currentStationName, selectedStation?.nom, stops, linesUiState, itineraryActive, activeJourneys, selectedJourney, manualFocusCenter, manualFocusZoom) {
+                        if (manualFocusZoom != null) return@remember manualFocusZoom
                         if (manualFocusCenter != null) return@remember 18.0
                         if (itineraryActive && activeJourneys.isNotEmpty()) {
                             val journeysToDraw = selectedJourney?.let { listOf(it) } ?: activeJourneys
@@ -614,6 +652,7 @@ private fun RootScaffold(
                                 val loc = userLocation
                                 if (loc != null) {
                                     manualFocusCenter = null
+                                    manualFocusZoom = null
                                     scope.launch {
                                         kotlinx.coroutines.delay(10)
                                         manualFocusCenter = loc
@@ -1157,6 +1196,9 @@ private fun SettingsTab(viewModel: TransportViewModel, modifier: Modifier = Modi
             onBack()
         }
         Unit
+    }
+    BackHandler(enabled = true) {
+        navigateBack()
     }
     Box(modifier) {
         when (currentRoute) {
