@@ -114,7 +114,6 @@ import eu.dotshell.pelo.generic.ui.screens.plan.itinerary.ItinerarySearchBarFiel
 import eu.dotshell.pelo.generic.data.local_history.LocalHistoryStorage
 import eu.dotshell.pelo.generic.data.telemetry.TelemetryEmitter
 import eu.dotshell.pelo.platform.Settings
-import kotlinx.coroutines.flow.MutableStateFlow
 import eu.dotshell.pelo.generic.ui.screens.settings.ItinerarySettingsScreen
 import eu.dotshell.pelo.generic.ui.screens.settings.OfflineSettingsScreen
 import eu.dotshell.pelo.generic.ui.screens.settings.SettingsScreen
@@ -132,7 +131,13 @@ import eu.dotshell.pelo.generic.ui.viewmodel.TransportLinesUiState
 import eu.dotshell.pelo.generic.ui.viewmodel.TransportStopsUiState
 import eu.dotshell.pelo.generic.ui.viewmodel.TransportViewModel
 import eu.dotshell.pelo.generic.ui.viewmodel.findStopByCoordinates
+import eu.dotshell.pelo.generic.utils.location.GeoPoint
 import eu.dotshell.pelo.generic.utils.location.LocationProvider
+import eu.dotshell.pelo.generic.service.NavigationModeController
+import eu.dotshell.pelo.generic.service.NavigationModeUiState
+import eu.dotshell.pelo.generic.ui.screens.plan.NavigationModeOverlay
+import eu.dotshell.pelo.generic.ui.screens.plan.buildNavigationModeUiState
+import eu.dotshell.pelo.generic.utils.geo.GeometryUtils
 import eu.dotshell.pelo.platform.DrawableProvider
 import eu.dotshell.pelo.platform.BackHandler
 import eu.dotshell.pelo.platform.LocalPlatformContext
@@ -251,9 +256,17 @@ private fun RootScaffold(
     var userLocation by remember { mutableStateOf<Position?>(null) }
     var hasCenteredInitially by remember { mutableStateOf(false) }
     val locationProvider = remember { LocationProvider(context) }
-    DisposableEffect(Unit) {
-        locationProvider.startUpdates { p -> userLocation = Position(latitude = p.latitude, longitude = p.longitude) }
-        onDispose { locationProvider.stopUpdates() }
+    val navigationController = remember(context) { NavigationModeController(context) }
+    val navigationState by navigationController.uiState.collectAsState()
+    DisposableEffect(locationProvider, navigationController) {
+        locationProvider.startUpdates { p ->
+            userLocation = Position(latitude = p.latitude, longitude = p.longitude)
+            navigationController.onLocationFix(GeoPoint(latitude = p.latitude, longitude = p.longitude))
+        }
+        onDispose {
+            locationProvider.stopUpdates()
+            navigationController.dispose()
+        }
     }
 
     LaunchedEffect(userLocation) {
@@ -462,8 +475,8 @@ private fun RootScaffold(
 
     val bottomSheetState = rememberStandardBottomSheetState(initialValue = SheetValue.Hidden, skipHiddenState = false)
     val bsScaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = bottomSheetState)
-    val hasSheet = itineraryActive || selectedStation != null || selectedLine != null || allSchedules != null
-    val sheetContentKey = "$itineraryActive|${selectedStation?.nom}|${selectedLine?.lineName}|${allSchedules?.lineName}"
+    val hasSheet = !navigationState.isActive && (itineraryActive || selectedStation != null || selectedLine != null || allSchedules != null)
+    val sheetContentKey = "${navigationState.isActive}|$itineraryActive|${selectedStation?.nom}|${selectedLine?.lineName}|${allSchedules?.lineName}"
     LaunchedEffect(sheetContentKey) {
         if (hasSheet) bottomSheetState.expand() else bottomSheetState.hide()
     }
@@ -633,7 +646,7 @@ private fun RootScaffold(
                         stops = filteredStopsCollection?.features,
                         userLocation = userLocation,
                         userFavorites = userFavorites,
-                        showTopBar = !itineraryActive,
+                        showTopBar = !itineraryActive && !navigationState.isActive,
                         vehiclesGeoJson = vehiclesGeoJson,
                         vehicleIconName = vehicleIconName,
                         focusCenter = focusCenter,
@@ -672,6 +685,7 @@ private fun RootScaffold(
                         showAlertReport = showAlertReport,
                         bsScaffoldState = bsScaffoldState,
                         sheetPeekHeight = if (hasSheet) 130.dp else 0.dp,
+                        navigationState = navigationState,
                         sheetContent = {
                             Box(Modifier.heightIn(max = maxSheetHeight)) {
                                 val sc = allSchedules
@@ -687,7 +701,8 @@ private fun RootScaffold(
                                         onDepartureFallbackSelected = { itineraryDeparture = it },
                                         onJourneysChanged = { activeJourneys = it },
                                         onSelectedJourneyChanged = { selectedJourney = it },
-                                        onStartNavigation = {
+                                        onStartNavigation = { journey ->
+                                            navigationController.start(journey)
                                             onNavigationModeChanged(true)
                                         },
                                         onClose = closeItinerary,
@@ -752,40 +767,42 @@ private fun RootScaffold(
                 }
             }
 
-            NavigationBar(containerColor = PrimaryColor) {
-                Destination.entries.forEach { destination ->
-                    NavigationBarItem(
-                        selected = when (destination) {
-                            Destination.LINES -> showLinesSheet
-                            Destination.PLAN -> selectedTab == Destination.PLAN && !showLinesSheet
-                            Destination.SETTINGS -> selectedTab == Destination.SETTINGS
-                        },
-                        onClick = {
-                            when (destination) {
-                                Destination.LINES -> { selectedTab = Destination.PLAN; showLinesSheet = true }
-                                Destination.PLAN -> { selectedTab = Destination.PLAN; showLinesSheet = false }
-                                Destination.SETTINGS -> {
-                                    selectedTab = Destination.SETTINGS
-                                    showLinesSheet = false
-                                    itinerarySearchTarget = null
+            if (!navigationState.isActive) {
+                NavigationBar(containerColor = PrimaryColor) {
+                    Destination.entries.forEach { destination ->
+                        NavigationBarItem(
+                            selected = when (destination) {
+                                Destination.LINES -> showLinesSheet
+                                Destination.PLAN -> selectedTab == Destination.PLAN && !showLinesSheet
+                                Destination.SETTINGS -> selectedTab == Destination.SETTINGS
+                            },
+                            onClick = {
+                                when (destination) {
+                                    Destination.LINES -> { selectedTab = Destination.PLAN; showLinesSheet = true }
+                                    Destination.PLAN -> { selectedTab = Destination.PLAN; showLinesSheet = false }
+                                    Destination.SETTINGS -> {
+                                        selectedTab = Destination.SETTINGS
+                                        showLinesSheet = false
+                                        itinerarySearchTarget = null
+                                    }
                                 }
-                            }
-                        },
-                        icon = { Icon(destination.icon, contentDescription = destination.contentDescription) },
-                        label = { Text(destination.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = AccentColor,
-                            selectedIconColor = SecondaryColor,
-                            unselectedIconColor = SecondaryColor,
-                            selectedTextColor = SecondaryColor,
-                            unselectedTextColor = SecondaryColor,
-                        ),
-                    )
+                            },
+                            icon = { Icon(destination.icon, contentDescription = destination.contentDescription) },
+                            label = { Text(destination.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = AccentColor,
+                                selectedIconColor = SecondaryColor,
+                                unselectedIconColor = SecondaryColor,
+                                selectedTextColor = SecondaryColor,
+                                unselectedTextColor = SecondaryColor,
+                            ),
+                        )
+                    }
                 }
             }
         }
 
-        if (itineraryActive && selectedTab != Destination.SETTINGS) {
+        if (itineraryActive && selectedTab != Destination.SETTINGS && !navigationState.isActive) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -912,6 +929,42 @@ private fun RootScaffold(
                 nearestStopCandidate = nearestStopCandidate
             )
         }
+
+        // Navigation mode overlay - displayed when navigation is active
+        if (navigationState.isActive) {
+            val loc = userLocation
+            if (loc != null) {
+                val overlayState = buildNavigationModeUiState(
+                    journey = navigationState.journey!!,
+                    nowSeconds = GeometryUtils.currentTimeInSeconds(),
+                    userLocation = GeoPoint(latitude = loc.latitude, longitude = loc.longitude)
+                )
+                NavigationModeOverlay(
+                    state = overlayState,
+                    onClose = {
+                        navigationController.stop()
+                        onNavigationModeChanged(false)
+                    },
+                    onReportAlert = {
+                        val nearestStop = filteredStopsCollection?.features?.minByOrNull { stop ->
+                            val coords = stop.geometry.coordinates
+                            val userPos = userLocation
+                            if (userPos != null && coords.size >= 2) {
+                                val dx = coords[0].toDouble() - userPos.longitude
+                                val dy = coords[1].toDouble() - userPos.latitude
+                                dx * dx + dy * dy
+                            } else Double.MAX_VALUE
+                        }
+                        if (nearestStop != null) {
+                            alertReportInitialStopName = nearestStop.properties.nom
+                            alertReportInitialLines = nearestStop.properties.desserte.split(":")
+                            showAlertReport = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
     }
 }
 
@@ -941,6 +994,7 @@ private fun PlanContent(
     bsScaffoldState: BottomSheetScaffoldState,
     sheetPeekHeight: Dp,
     sheetContent: @Composable () -> Unit,
+    navigationState: NavigationModeUiState,
 ) {
     val context = LocalPlatformContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
@@ -1012,7 +1066,7 @@ private fun PlanContent(
                     onMapMoved = onFabReset,
                 )
 
-                if (!showAlertReport) {
+                if (!showAlertReport && !navigationState.isActive) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)

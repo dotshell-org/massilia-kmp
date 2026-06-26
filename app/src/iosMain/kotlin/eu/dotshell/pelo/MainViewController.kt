@@ -5,6 +5,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import eu.dotshell.pelo.generic.data.config.AppConfigLoader
 import eu.dotshell.pelo.generic.data.telemetry.TelemetryService
 import eu.dotshell.pelo.generic.service.TransportServiceProvider
+import eu.dotshell.pelo.generic.utils.location.LocationPermissionManager
 import eu.dotshell.pelo.platform.BackgroundScheduler
 import eu.dotshell.pelo.platform.LocalPlatformContext
 import eu.dotshell.pelo.platform.Log
@@ -35,9 +36,17 @@ fun MainViewController(): UIViewController {
     } catch (e: Exception) {
         Log.w("MainViewController", "Failed to initialize Telemetry: ${e.message}")
     }
+    
     return ComposeUIViewController {
         CompositionLocalProvider(LocalPlatformContext provides IosPlatformContext) {
-            App()
+            App(
+                onNavigationModeChanged = { active ->
+                    if (active) {
+                        // Request always authorization for navigation to enable background updates
+                        LocationPermissionManager.requestNavigationPermissions(IosPlatformContext)
+                    }
+                }
+            )
         }
     }
 }

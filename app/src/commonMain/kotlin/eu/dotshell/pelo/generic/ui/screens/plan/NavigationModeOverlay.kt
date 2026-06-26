@@ -1,0 +1,196 @@
+package eu.dotshell.pelo.generic.ui.screens.plan
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import eu.dotshell.pelo.generic.ui.theme.PrimaryColor
+import eu.dotshell.pelo.generic.ui.theme.SecondaryColor
+import eu.dotshell.pelo.platform.DrawableProvider
+import eu.dotshell.pelo.platform.LocalPlatformContext
+
+@Composable
+fun NavigationModeOverlay(
+    state: NavigationModeUiState,
+    onClose: () -> Unit,
+    onReportAlert: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayedLeg = state.displayedLeg
+    val topShape = if (state.upcomingLeg != null) {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 0.dp, bottomEnd = 20.dp)
+    } else {
+        RoundedCornerShape(20.dp)
+    }
+
+    Box(modifier) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, top = 30.dp, bottom = 12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(132.dp)
+                    .clip(topShape)
+                    .background(PrimaryColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (state.shouldChangeLine && state.currentLeg != null && displayedLeg != null) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
+                        ) {
+                            NavigationLineIcon(
+                                lineName = state.currentLeg.routeName.orEmpty(),
+                                size = 36.dp
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.ArrowDownward,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            NavigationLineIcon(
+                                lineName = displayedLeg.routeName.orEmpty(),
+                                size = 36.dp
+                            )
+                        }
+                    } else {
+                        NavigationLineIcon(
+                            lineName = displayedLeg?.routeName.orEmpty(),
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                            size = 44.dp
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = state.directionText,
+                            color = Color(0xFF9CA3AF),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            text = state.actionText,
+                            color = SecondaryColor,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            state.upcomingLeg?.let { upcoming ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp))
+                        .background(Color(0xFF292524))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "A suivre",
+                            fontSize = 16.sp,
+                            color = SecondaryColor,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        NavigationLineIcon(
+                            lineName = upcoming.routeName.orEmpty(),
+                            size = 32.dp
+                        )
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(108.dp)
+                .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                .background(PrimaryColor)
+                .padding(bottom = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = state.remainingTimeText,
+                    color = SecondaryColor,
+                    style = MaterialTheme.typography.headlineMedium
+                )
+                Text(
+                    text = state.arrivalTimeText,
+                    color = Color(0xFF9CA3AF),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "Retour",
+                tint = SecondaryColor,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 20.dp)
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF292524))
+                    .clickable { onClose() }
+                    .padding(8.dp)
+            )
+
+            val drawableProvider = DrawableProvider(LocalPlatformContext.current)
+            Icon(
+                painter = drawableProvider.getPainter("add_triangle_24px"),
+                contentDescription = "Signaler une alerte",
+                tint = Color(0xFFFACC15),
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 20.dp)
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF292524))
+                    .clickable { onReportAlert() }
+                    .padding(10.dp)
+            )
+        }
+    }
+}
