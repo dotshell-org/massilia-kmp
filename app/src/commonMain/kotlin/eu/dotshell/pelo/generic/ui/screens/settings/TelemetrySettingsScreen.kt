@@ -214,7 +214,7 @@ fun TelemetrySettingsScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text(text = "${snapshot.events.size} évènements", color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "${snapshot.events.size} év.", color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }

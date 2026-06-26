@@ -494,7 +494,7 @@ fun MapCanvas(
                 CircleLayer(
                     id = "vehicles-bg",
                     source = vehicleSource,
-                    radius = const(11.dp),
+                    radius = const(9.dp),
                     color = feature["color"].convertToColor(),
                     onClick = { f ->
                         val nom = f.firstOrNull()?.properties?.get("lineName")?.jsonPrimitive?.contentOrNull
@@ -503,8 +503,8 @@ fun MapCanvas(
                 )
                 val vehicleIconImage = switch(
                     feature["markerType"].convertToString(),
-                    case("TRAM", image(tramPainter, glyphDpSize(tramPainter, 12f))),
-                    fallback = image(busPainter, glyphDpSize(busPainter, 12f))
+                    case("TRAM", image(tramPainter, glyphDpSize(tramPainter, 11f))),
+                    fallback = image(busPainter, glyphDpSize(busPainter, 11f))
                 )
                 SymbolLayer(
                     id = "vehicles-pictogram",
