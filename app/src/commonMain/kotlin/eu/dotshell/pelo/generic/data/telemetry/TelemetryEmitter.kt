@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 /**
  * Process-wide entry point for telemetry, shared across platforms.
@@ -90,6 +91,28 @@ object TelemetryEmitter {
         val rotation = dailyIdProvider.currentOrRotate()
         scope.launch {
             repository.initFor(rotation.id, rotation.day)
+
+            val currentState = repository.state.value
+            if (currentState != null) {
+                val snapshot = repository.snapshotPendingForUpload()
+                if (snapshot != null) {
+                    val lastMod = try {
+                        Instant.parse(currentState.lastModifiedAt)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (lastMod != null) {
+                        val durationSinceLastMod = Clock.System.now() - lastMod
+                        if (durationSinceLastMod.inWholeMinutes >= 5) {
+                            Log.i(TAG, "Unsent telemetry found (last modified ${durationSinceLastMod.inWholeMinutes} minutes ago). Triggering upload...")
+                            launch {
+                                val outcome = TelemetryUploader.uploadOnce(attemptCount = 0)
+                                Log.i(TAG, "Startup telemetry upload finished with outcome: $outcome")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
