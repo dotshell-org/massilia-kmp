@@ -39,10 +39,6 @@ class AppVehiclePositionsService(
         coerceInputValues = true
     }
 
-    private val lineRefPattern: Regex? = runCatching {
-        Regex(config.vehiclePositionsLineRefPattern)
-    }.getOrNull()
-
     private val httpClient = HttpClient(createHttpClientEngine()) {
         install(SSE)
     }
@@ -153,17 +149,12 @@ class AppVehiclePositionsService(
     }
 
     private fun extractLineNameFromRef(lineRef: String): String {
-        lineRefPattern?.find(lineRef)?.value?.let { return it }
         // The line is in the LAST "::" segment: e.g. "ActIV:Line::T7:SYTRAL" and the
         // double-prefixed "Interpolated:Line::ActIV:Line::T7:SYTRAL" both yield "T7".
-        val parts = lineRef.split("::")
-        if (parts.size >= 2) {
-            val lastSegment = parts.last()
-            val colonIndex = lastSegment.indexOf(":")
-            if (colonIndex > 0) return lastSegment.take(colonIndex)
-            return lastSegment
-        }
-        return ""
+        val lastSegment = lineRef.split("::").last()
+        val colonIndex = lastSegment.indexOf(":")
+        if (colonIndex > 0) return lastSegment.take(colonIndex)
+        return lastSegment
     }
 
     private fun isValidLineName(lineName: String): Boolean {
