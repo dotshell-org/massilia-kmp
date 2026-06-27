@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import eu.dotshell.pelo.platform.DrawableProvider
 import eu.dotshell.pelo.platform.LocalPlatformContext
 import eu.dotshell.pelo.generic.utils.graphics.LineIconResolver
@@ -543,10 +544,20 @@ fun JourneyDetailsSheetContent(
             Spacer(modifier = Modifier.height(bottomBarHeight))
         }
 
+        val sheetBgColor = if (useLightColors) SecondaryColor else PrimaryColor
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            sheetBgColor.copy(alpha = 0.5f),
+                            sheetBgColor
+                        )
+                    )
+                )
                 .padding(horizontal = 8.dp, vertical = 16.dp)
         ) {
             Row(
