@@ -75,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
@@ -289,12 +290,30 @@ private fun RootScaffold(
         }
     }
 
-    LaunchedEffect(userLocation, selectedTab) {
-        val loc = userLocation
-        if (loc != null && selectedTab == Destination.PLAN && !hasCenteredInitially) {
-            manualFocusCenter = loc
-            isCenteredOnUser = true
-            hasCenteredInitially = true
+    LaunchedEffect(selectedTab, userLocation) {
+        if (selectedTab == Destination.PLAN && !hasCenteredInitially) {
+            val loc = userLocation
+            if (loc != null) {
+                hasCenteredInitially = true
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = org.maplibre.spatialk.geojson.Position(latitude = loc.latitude, longitude = loc.longitude),
+                        zoom = 18.0,
+                        bearing = 0.0,
+                        tilt = 0.0
+                    )
+                )
+                isCenteredOnUser = true
+            } else {
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = cameraState.position.target,
+                        zoom = cameraState.position.zoom,
+                        bearing = 0.0,
+                        tilt = 0.0
+                    )
+                )
+            }
         }
     }
 
@@ -1097,16 +1116,56 @@ private fun PlanContent(
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Navigation,
-                                    contentDescription = "Réorienter la carte",
-                                    tint = Color.White,
+                                Canvas(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .graphicsLayer {
                                             rotationZ = -cameraState.position.bearing.toFloat()
                                         }
-                                )
+                                ) {
+                                    val width = size.width
+                                    val height = size.height
+                                    val centerX = width / 2f
+                                    val centerY = height / 2f
+
+                                    // Path for the North (Red) pointer (Left half)
+                                    val northLeftPath = Path().apply {
+                                        moveTo(centerX, 0f)                     // Top tip
+                                        lineTo(centerX - width * 0.2f, centerY)  // Middle left
+                                        lineTo(centerX, centerY - height * 0.05f)// Center inner
+                                        close()
+                                    }
+                                    // Path for the North (Red) pointer (Right half)
+                                    val northRightPath = Path().apply {
+                                        moveTo(centerX, 0f)                     // Top tip
+                                        lineTo(centerX + width * 0.2f, centerY)  // Middle right
+                                        lineTo(centerX, centerY - height * 0.05f)// Center inner
+                                        close()
+                                    }
+
+                                    // Path for the South (White) pointer (Left half)
+                                    val southLeftPath = Path().apply {
+                                        moveTo(centerX, height)                 // Bottom tip
+                                        lineTo(centerX - width * 0.2f, centerY)  // Middle left
+                                        lineTo(centerX, centerY + height * 0.05f)// Center inner
+                                        close()
+                                    }
+                                    // Path for the South (White) pointer (Right half)
+                                    val southRightPath = Path().apply {
+                                        moveTo(centerX, height)                 // Bottom tip
+                                        lineTo(centerX + width * 0.2f, centerY)  // Middle right
+                                        lineTo(centerX, centerY + height * 0.05f)// Center inner
+                                        close()
+                                    }
+
+                                    // Draw North halves
+                                    drawPath(northLeftPath, Color(0xFFEF4444))      // Bright Red
+                                    drawPath(northRightPath, Color(0xFFDC2626)) // Darker Red for shadow
+
+                                    // Draw South halves
+                                    drawPath(southLeftPath, Color(0xFFE5E7EB))      // Light grey
+                                    drawPath(southRightPath, Color.White)       // Pure white for highlight
+                                }
                             }
                         }
 
