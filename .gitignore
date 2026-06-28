@@ -16,15 +16,22 @@ local.properties
 .idea
 
 # GTFS data files (too large for git)
-app/src/main/java/com/pelotcl/data/gtfstcl/
-app/src/main/assets/data/gtfstcl/
-app/src/main/assets/data/gtfstcl_processed/
-app/src/main/java/com/pelotcl/app/data/gtfstcl/
 gtfs_processed/
 scripts/.venv
 
 # Keystore files
 *.jks
 *.keystore
-/app/release/
 /nul
+
+.kotlin
+app/build
+
+# iOS / XcodeGen — regenerate the project with:
+#   /tmp/xcodegen-dist/xcodegen/bin/xcodegen generate --spec iosApp/project.yml
+iosApp/iosApp.xcodeproj/
+iosApp/Info.plist
+**/xcuserdata/
+.swiftpm/
+
+.claude

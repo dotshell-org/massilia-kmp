@@ -1,10 +1,12 @@
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.compose.multiplatform)
 }
 
 val localProperties = Properties()
@@ -13,22 +15,125 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
+kotlin {
+    compilerOptions {
+        // expect/actual classes are still flagged "Beta"; this project relies on them
+        // intentionally (Settings, FileSystem, LocationProvider, …). Opt in to silence the warning.
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+    }
+
+    listOf(
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material3)
+            implementation(compose.ui)
+            implementation(compose.components.resources)
+            implementation(compose.materialIconsExtended)
+
+            // JetBrains lifecycle (Compose Multiplatform) — provides androidx.lifecycle.ViewModel
+            // + viewModelScope in commonMain (same package as the Android artifact).
+            implementation(libs.jetbrains.lifecycle.viewmodel)
+
+            // Ktor (replaces Retrofit/OkHttp/Gson)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.client.logging)
+
+            // Kotlinx
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
+
+            // okio — cross-platform file IO + gzip (replaces java.io + java.util.zip)
+            implementation(libs.okio)
+
+            // maplibre-compose — Compose Multiplatform map (probe: verifying toolchain compatibility)
+            implementation(libs.maplibre.compose)
+
+            // Raptor-KT
+            implementation(libs.raptor.kt)
+        }
+
+        androidMain.dependencies {
+            implementation(compose.preview)
+
+            // Ktor engine for Android (uses OkHttp under the hood)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.okhttp)
+
+            // Android-specific
+            implementation(libs.material)
+            implementation(libs.androidx.compose.foundation.layout)
+            implementation(libs.transport.runtime)
+            implementation(libs.androidx.ui.graphics)
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.androidx.lifecycle.runtime.ktx)
+            implementation(libs.androidx.lifecycle.process)
+            implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.navigation.compose)
+            implementation(libs.androidx.compose.material.icons.extended)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
+            implementation(libs.androidx.compose.ui.geometry)
+            implementation(libs.androidx.work.runtime.ktx)
+            implementation(libs.google.play.services.location)
+            implementation(libs.androidx.profileinstaller)
+            implementation(libs.androidx.security.crypto)
+            implementation(libs.kotlinx.coroutines.android)
+
+            // MapLibre (Android-only)
+            implementation(libs.maplibre.android)
+        }
+
+        androidMain {
+            kotlin.exclude("eu/dotshell/pelo/generic/data/models/**")
+            kotlin.exclude("eu/dotshell/pelo/specific/data/model/**")
+        }
+
+        iosMain.dependencies {
+            // Ktor engine for iOS
+            implementation(libs.ktor.client.darwin)
+        }
+    }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "eu.dotshell.pelo.resources"
+    generateResClass = always
+}
+
 android {
     signingConfigs {
         create("release") {
             storeFile = rootProject.file("pelotcl.jks")
             storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD") ?: ""
-            keyAlias = "pelotcl-key"
+            keyAlias = "key0"
             keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD") ?: ""
         }
     }
-    namespace = "com.pelotcl.app"
-    compileSdk {
-        version = release(36)
-    }
+    namespace = "eu.dotshell.pelo"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.pelotcl.app"
+        applicationId = "eu.dotshell.pelo"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -54,24 +159,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        isCoreLibraryDesugaringEnabled = true
-    }
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-        }
-    }
-    buildFeatures {
-        compose = true
     }
 
     lint {
-        // Disable strict mode for now to allow compilation
         abortOnError = false
         warningsAsErrors = false
         checkAllWarnings = false
-        
-        // Ignore specific warnings that we consider acceptable
         disable += listOf(
             "LogNotTimber",
             "UnusedAttribute",
@@ -81,8 +174,11 @@ android {
     }
 }
 
+dependencies {
+    debugImplementation(compose.uiTooling)
+}
+
 val cleanCompressedAssets = tasks.register<Delete>("cleanCompressedAssets") {
-    // Avoid stale or corrupted compressed_assets outputs between builds.
     delete(layout.buildDirectory.dir("intermediates/compressed_assets"))
 }
 
@@ -90,75 +186,3 @@ tasks.matching { it.name.startsWith("compress") && it.name.endsWith("Assets") }
     .configureEach {
         dependsOn(cleanCompressedAssets)
     }
-
-dependencies {
-    implementation(libs.material)
-    implementation(libs.androidx.compose.foundation.layout)
-    implementation(libs.transport.runtime)
-    implementation(libs.androidx.ui.graphics)
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.process)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
-    // Foundation for TextFieldState (text2) APIs
-    implementation(libs.androidx.compose.foundation)
-
-    // Navigation and Material Icons
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.compose.material.icons.extended)
-
-    // MapLibre
-    implementation(libs.maplibre.android)
-
-    // Location Services
-    implementation(libs.google.play.services.location)
-
-    // Retrofit for network calls
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.converter.gson)
-    implementation(libs.gson)
-    
-    // OkHttp for caching and network optimization
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.sse)
-
-    // ViewModel
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.compose.ui.geometry)
-
-    // Raptor-KT
-    implementation(libs.raptor.kt)
-
-    // Kotlinx Serialization for fast JSON caching
-    implementation(libs.kotlinx.serialization.json)
-
-    // YAML parsing for config.yml
-    implementation(libs.snakeyaml)
-
-    // Encrypted SharedPreferences for telemetry daily_id
-    implementation(libs.androidx.security.crypto)
-
-    // WorkManager for background tasks
-    implementation(libs.androidx.work.runtime.ktx)
-
-    // Jetpack Glance for home screen widgets
-    implementation(libs.androidx.glance.appwidget)
-    implementation(libs.androidx.glance.material3)
-
-    // ProfileInstaller for Baseline Profiles (improves cold start by ~15-30%)
-    implementation(libs.androidx.profileinstaller)
-
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
-}
