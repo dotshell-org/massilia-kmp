@@ -37,6 +37,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import eu.dotshell.pelo.platform.LocalPlatformContext
+import eu.dotshell.pelo.platform.StringProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +67,7 @@ fun TelemetrySettingsScreen(
     onWipeHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = StringProvider(LocalPlatformContext.current)
     var showWipeConfirmDialog by remember { mutableStateOf(false) }
 
     val prettyJson = remember {
@@ -107,7 +110,7 @@ fun TelemetrySettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Confidentialité",
+                        text = strings["privacy_title"],
                         color = SecondaryColor,
                         fontWeight = FontWeight.Bold
                     )
@@ -116,7 +119,7 @@ fun TelemetrySettingsScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = strings["back"],
                             tint = SecondaryColor
                         )
                     }
@@ -157,7 +160,7 @@ fun TelemetrySettingsScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = "Supprimer l'historique local",
+                        text = strings["delete_local_history"],
                         color = Color(0xFFEF4444),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
@@ -168,7 +171,7 @@ fun TelemetrySettingsScreen(
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Données collectées aujourd'hui",
+                text = strings["data_collected_today"],
                 color = SecondaryColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
@@ -179,7 +182,7 @@ fun TelemetrySettingsScreen(
 
             when (snapshot) {
                 null -> InfoCard(
-                    title = "Aucune donnée",
+                    title = strings["no_data"],
                     body = "Aucun événement n'a encore été enregistré."
                 )
                 else -> {
@@ -214,7 +217,7 @@ fun TelemetrySettingsScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.List, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text(text = "${snapshot.events.size} év.", color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text(text = strings["events_count"].replace("%s", snapshot.events.size.toString()), color = SecondaryColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -223,7 +226,7 @@ fun TelemetrySettingsScreen(
                     EventBreakdownCard(events = snapshot.events)
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        text = "Journal des événements",
+                        text = strings["events_log"],
                         color = SecondaryColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
@@ -244,6 +247,7 @@ fun TelemetrySettingsScreen(
 
 @Composable
 private fun EventItem(event: TelemetryEvent) {
+    val strings = StringProvider(LocalPlatformContext.current)
     val (icon, color) = eventIconAndColor(event::class.simpleName ?: "Unknown")
     val title = eventDescriptionLabel(event)
     val time = remember(event.at) {
@@ -282,7 +286,7 @@ private fun EventItem(event: TelemetryEvent) {
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Type : ${event::class.simpleName}",
+                        text = strings["event_type"].replace("%s", event::class.simpleName ?: ""),
                         color = Color.Gray,
                         fontSize = 11.sp
                     )

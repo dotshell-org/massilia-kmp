@@ -94,7 +94,7 @@ fun OfflineSettingsScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Mode hors ligne",
+                text = strings["offline_mode"],
                 color = SecondaryColor,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold
@@ -392,7 +392,7 @@ private fun OfflineStatusCard(info: OfflineDataInfo) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Données anciennes — mise à jour recommandée",
+                        text = strings["stale_data_update_recommended"],
                         color = Color(0xFFFF9800),
                         fontSize = 13.sp
                     )

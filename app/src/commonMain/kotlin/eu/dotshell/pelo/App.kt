@@ -149,6 +149,7 @@ import eu.dotshell.pelo.generic.utils.geo.GeometryUtils
 import eu.dotshell.pelo.platform.DrawableProvider
 import eu.dotshell.pelo.platform.BackHandler
 import eu.dotshell.pelo.platform.LocalPlatformContext
+import eu.dotshell.pelo.platform.StringProvider
 import eu.dotshell.pelo.platform.Log
 import eu.dotshell.pelo.platform.appVersionName
 import eu.dotshell.pelo.platform.ioDispatcher
@@ -788,6 +789,7 @@ private fun RootScaffold(
 
             if (!navigationState.isActive) {
                 NavigationBar(containerColor = PrimaryColor) {
+                    val tabStrings = StringProvider(LocalPlatformContext.current)
                     Destination.entries.forEach { destination ->
                         NavigationBarItem(
                             selected = when (destination) {
@@ -806,8 +808,8 @@ private fun RootScaffold(
                                     }
                                 }
                             },
-                            icon = { Icon(destination.icon, contentDescription = destination.contentDescription) },
-                            label = { Text(destination.label) },
+                            icon = { Icon(destination.icon, contentDescription = tabStrings[destination.contentDescriptionKey]) },
+                            label = { Text(tabStrings[destination.labelKey]) },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = AccentColor,
                                 selectedIconColor = SecondaryColor,

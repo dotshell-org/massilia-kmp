@@ -30,6 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import eu.dotshell.pelo.platform.LocalPlatformContext
+import eu.dotshell.pelo.platform.StringProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
@@ -57,6 +59,7 @@ fun ItinerarySettingsScreen(
     getInitialOptionState: (ItineraryOptionData) -> Boolean = { it.defaultEnabled },
     modifier: Modifier = Modifier
 ) {
+    val strings = StringProvider(LocalPlatformContext.current)
     val optionStates = remember(options) {
         mutableStateMapOf<String, Boolean>().apply {
             options.forEach { option ->
@@ -80,7 +83,7 @@ fun ItinerarySettingsScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Retour",
+                            contentDescription = strings["back"],
                             tint = SecondaryColor,
                         )
                     }
@@ -189,6 +192,7 @@ private fun ItineraryLineItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val strings = StringProvider(LocalPlatformContext.current)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -214,7 +218,7 @@ private fun ItineraryLineItem(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Sélectionné",
+                    contentDescription = strings["selected"],
                     tint = SecondaryColor,
                     modifier = Modifier.size(16.dp)
                 )
