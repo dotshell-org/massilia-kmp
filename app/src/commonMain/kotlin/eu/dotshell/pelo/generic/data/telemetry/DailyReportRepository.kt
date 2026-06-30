@@ -198,12 +198,6 @@ class DailyReportRepository(
 
     private fun nowIso(): String = Clock.System.now().toString()
 
-    /**
-     * Helper to mint event_ids consistently. Useful for call sites that construct events
-     * manually instead of going through the [TelemetryEmitter] (rare).
-     */
-    fun newEventId(): String = randomId()
-
     companion object {
         private const val TAG = "TelemetryRepo"
         private const val DEBOUNCE_MS = 1_000L

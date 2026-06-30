@@ -471,21 +471,6 @@ class RaptorRepository private constructor(private val context: PlatformContext)
             searchStopsByName(stopName).map { it.id }.take(maxIds)
         }
 
-    /**
-     * Get stop name by its ID.
-     * Useful for matching WFS stops (which have gid) to Raptor stops.
-     */
-    fun getStopNameById(stopId: Int): String? {
-        return stopsCache.find { it.id == stopId }?.name
-    }
-
-    /**
-     * Get all stops as a map of id to name.
-     * Useful for bulk enrichment of stop names.
-     */
-    fun getAllStopNamesById(): Map<Int, String> {
-        return stopsCache.associate { it.id to it.name }
-    }
 
     /**
      * Get all stops with their coordinates.
