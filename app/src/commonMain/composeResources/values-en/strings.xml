@@ -97,6 +97,17 @@
     <string name="bus_lines_label">Bus lines</string>
     <string name="no_bus_lines_label">None</string>
     <string name="bus_lines_value">%s lines</string>
+    <string name="offline_status_downloading_data">Downloading data...</string>
+    <string name="offline_status_saving_data">Saving data...</string>
+    <string name="offline_status_bus_lines">Bus lines...</string>
+    <string name="offline_status_bus_lines_progress">Bus lines (%s)...</string>
+    <string name="offline_status_map_tiles">Tiles %1$s (%2$s)...</string>
+    <string name="offline_error_insufficient_memory">Insufficient memory to download bus lines</string>
+    <string name="offline_error_download_failed">Download failed: %s</string>
+    <string name="offline_error_bus_lines_failed">Failed to download bus lines: %s</string>
+    <string name="offline_error_unexpected">Unexpected error: %s</string>
+    <string name="never">Never</string>
+    <string name="date_time_at">%1$s at %2$s</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="special_fare_lines">Special fare lines</string>
