@@ -23,7 +23,6 @@ actual fun ProvideAppLocale(languageTag: String, content: @Composable () -> Unit
     val configuration = LocalConfiguration.current
     val (localizedConfig, localizedContext) = remember(languageTag, configuration) {
         val locale = Locale.forLanguageTag(languageTag)
-        Locale.setDefault(locale)
         val config = Configuration(configuration).apply { setLocale(locale) }
         config to context.createConfigurationContext(config)
     }
