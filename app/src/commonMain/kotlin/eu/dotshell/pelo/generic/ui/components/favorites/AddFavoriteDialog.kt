@@ -112,7 +112,7 @@ fun AddFavoriteDialog(
         }
     }
 
-    val isOtherSelected = selectedPreset?.name == strings["preset_other"]
+    val isOtherSelected = selectedPreset?.iconName == "star"
     val finalFavoriteTitle =
         if (isOtherSelected) customOtherTitle.trim() else (selectedPreset?.name ?: "")
 
