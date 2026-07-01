@@ -173,7 +173,7 @@ fun AddFavoriteDialog(
                         isSelected = preset == selectedPreset,
                         onClick = {
                             selectedPreset = preset
-                            if (preset.name != "Autre") {
+                            if (preset.iconName != "star") {
                                 customOtherTitle = ""
                             }
                         }
