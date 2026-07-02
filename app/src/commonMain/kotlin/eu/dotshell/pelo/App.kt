@@ -137,6 +137,7 @@ import eu.dotshell.pelo.generic.ui.screens.settings.about.CreditsScreen
 import eu.dotshell.pelo.generic.ui.screens.settings.about.LegalScreen
 
 import eu.dotshell.pelo.generic.ui.theme.AccentColor
+import eu.dotshell.pelo.generic.ui.theme.PeloAppTheme
 import eu.dotshell.pelo.generic.ui.theme.PeloTheme
 import eu.dotshell.pelo.generic.ui.theme.ThemeController
 import eu.dotshell.pelo.generic.ui.theme.LocalThemeController
@@ -807,7 +808,7 @@ private fun RootScaffold(
             }
 
             if (!navigationState.isActive) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     val tabStrings = StringProvider(LocalPlatformContext.current)
                     Destination.entries.forEach { destination ->
                         NavigationBarItem(
@@ -831,7 +832,7 @@ private fun RootScaffold(
                             label = { Text(tabStrings[destination.labelKey]) },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = AccentColor,
-                                selectedIconColor = Color.White,
+                                selectedIconColor = MaterialTheme.colorScheme.onSurface,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 selectedTextColor = MaterialTheme.colorScheme.onSurface,
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1150,7 +1151,7 @@ private fun PlanContent(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(Color.Black, CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface, CircleShape)
                                     .clickable {
                                         scope.launch {
                                             cameraState.animateTo(
@@ -1319,7 +1320,7 @@ private fun PlanContent(
 
                             Row(
                                 modifier = Modifier
-                                    .shadow(4.dp, RoundedCornerShape(20.dp))
+                                    .shadow(2.dp, RoundedCornerShape(20.dp))
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(MaterialTheme.colorScheme.surface)
                                     .clickable { showStyleSheet = true }
@@ -1338,7 +1339,7 @@ private fun PlanContent(
                             if (selectedLineName.isNullOrBlank() || lineRules.isLiveTrackableLine(selectedLineName)) {
                                 Row(
                                     modifier = Modifier
-                                        .shadow(4.dp, RoundedCornerShape(20.dp))
+                                        .shadow(2.dp, RoundedCornerShape(20.dp))
                                         .clip(RoundedCornerShape(20.dp))
                                         .background(buttonColor)
                                         .clickable {
@@ -1367,7 +1368,7 @@ private fun PlanContent(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "LIVE",
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.Medium,
                                         color = buttonContentColor,
                                         fontSize = 14.sp
                                     )
