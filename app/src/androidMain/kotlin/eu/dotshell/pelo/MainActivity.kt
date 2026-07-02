@@ -41,28 +41,6 @@ class MainActivity : ComponentActivity() {
             setNavigationLockScreenBehavior(true)
         }
 
-        // Preload disk cache and binary schedule data in parallel BEFORE UI (critical for first render)
-        // Retrofit initialization is deferred to after setContent
-        appScope.launch {
-            try {
-                // Parallel cache and schedule-data warmup - these are needed for initial UI
-                val cacheJob = launch {
-                    val cache = TransportCacheImpl(applicationContext)
-                    cache.preloadFromDisk()
-                }
-                val schedulesJob = launch {
-                    val schedulesRepo =
-                        SchedulesRepository.getInstance(applicationContext)
-                    schedulesRepo.warmupDatabase()
-                }
-                // Wait for cache and schedule data warmup (critical for UI)
-                cacheJob.join()
-                schedulesJob.join()
-            } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "Startup preload failed: ${e.message}")
-            }
-        }
-
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT,
@@ -72,18 +50,6 @@ class MainActivity : ComponentActivity() {
                 android.graphics.Color.TRANSPARENT
             )
         )
-
-        // Request location permissions if they are not already granted
-        val locationPermissions = arrayOf(
-            android.Manifest.permission.ACCESS_FINE_LOCATION,
-            android.Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        val missingPermissions = locationPermissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
-        if (missingPermissions.isNotEmpty()) {
-            requestPermissions(missingPermissions.toTypedArray(), 1001)
-        }
 
         setContent {
             CompositionLocalProvider(eu.dotshell.pelo.platform.LocalPlatformContext provides this@MainActivity) {
@@ -109,24 +75,44 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Deferred initialization - run AFTER setContent to not block first frame
-        // These are not needed for initial UI display
-        appScope.launch {
-            // TransportServiceProvider + RetrofitInstance are initialized in PeloApplication.onCreate
-            // so background workers and repositories can run before the first activity starts.
+        // Request location permissions if they are not already granted
+        // Moved AFTER setContent to avoid blocking first frame
+        val locationPermissions = arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        val missingPermissions = locationPermissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (missingPermissions.isNotEmpty()) {
+            requestPermissions(missingPermissions.toTypedArray(), 1001)
+        }
 
-            // Preload Raptor library in background (only needed for itinerary calculations)
-            // yield() gives the UI thread priority without an arbitrary delay
-            kotlinx.coroutines.yield()
+        // Start all background preloading AFTER setContent to ensure UI displays immediately
+        // This is critical for fast first render - do NOT block on these operations
+        appScope.launch {
             try {
-                val raptorRepo =
-                    RaptorRepository.getInstance(
-                        applicationContext
-                    )
-                raptorRepo.initialize()
-                raptorRepo.preloadJourneyCache()
+                // TransportServiceProvider + RetrofitInstance are initialized in PeloApplication.onCreate
+                // so background workers and repositories can run before the first activity starts.
+
+                // Parallel preloading - fire and forget (do NOT join)
+                val cacheJob = launch {
+                    val cache = TransportCacheImpl(applicationContext)
+                    cache.preloadFromDisk()
+                }
+                
+                // Preload Raptor library in background (only needed for itinerary calculations)
+                // Note: SchedulesRepository.warmupDatabase() is a no-op, so we skip it
+                launch {
+                    val raptorRepo = RaptorRepository.getInstance(applicationContext)
+                    raptorRepo.initialize()
+                    raptorRepo.preloadJourneyCache()
+                }
+                
+                // Don't wait for any of these - let them complete in background
+                // cacheJob.join() - REMOVED to avoid blocking
             } catch (e: Exception) {
-                android.util.Log.w("MainActivity", "Raptor preload failed: ${e.message}")
+                android.util.Log.w("MainActivity", "Background preload failed: ${e.message}")
             }
         }
     }
