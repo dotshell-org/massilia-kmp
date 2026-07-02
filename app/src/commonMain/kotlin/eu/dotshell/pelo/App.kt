@@ -142,8 +142,6 @@ import eu.dotshell.pelo.generic.ui.theme.ThemeController
 import eu.dotshell.pelo.generic.ui.theme.LocalThemeController
 import eu.dotshell.pelo.generic.data.repository.offline.theme.ThemeMode
 import eu.dotshell.pelo.generic.data.repository.offline.theme.ThemePreferenceRepository
-import eu.dotshell.pelo.generic.ui.theme.PrimaryColor
-import eu.dotshell.pelo.generic.ui.theme.SecondaryColor
 import eu.dotshell.pelo.generic.ui.viewmodel.TransportLinesUiState
 import eu.dotshell.pelo.generic.ui.viewmodel.TransportStopsUiState
 import eu.dotshell.pelo.generic.ui.viewmodel.TransportViewModel
@@ -809,7 +807,7 @@ private fun RootScaffold(
             }
 
             if (!navigationState.isActive) {
-                NavigationBar(containerColor = PrimaryColor) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     val tabStrings = StringProvider(LocalPlatformContext.current)
                     Destination.entries.forEach { destination ->
                         NavigationBarItem(
@@ -833,10 +831,10 @@ private fun RootScaffold(
                             label = { Text(tabStrings[destination.labelKey]) },
                             colors = NavigationBarItemDefaults.colors(
                                 indicatorColor = AccentColor,
-                                selectedIconColor = SecondaryColor,
-                                unselectedIconColor = SecondaryColor,
-                                selectedTextColor = SecondaryColor,
-                                unselectedTextColor = SecondaryColor,
+                                selectedIconColor = Color.White,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),
                         )
                     }
@@ -874,7 +872,7 @@ private fun RootScaffold(
                     modifier = Modifier
                         .size(36.dp)
                         .shadow(4.dp, CircleShape)
-                        .background(Color.White, CircleShape)
+                        .background(MaterialTheme.colorScheme.surface, CircleShape)
                         .clickable {
                             val tmp = itineraryDeparture; itineraryDeparture = itineraryArrival; itineraryArrival = tmp
                         },
@@ -883,7 +881,7 @@ private fun RootScaffold(
                     Icon(
                         imageVector = Icons.Filled.SwapVert,
                         contentDescription = "Inverser",
-                        tint = Color.Black,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -917,7 +915,7 @@ private fun RootScaffold(
             val allLines = remember(linesUiState, stopsUiState) { viewModel.getAllAvailableLines() }
             ModalBottomSheet(
                 onDismissRequest = { showLinesSheet = false },
-                containerColor = SecondaryColor,
+                containerColor = MaterialTheme.colorScheme.surface,
                 sheetState = linesSheetState,
             ) {
                 LinesBottomSheet(
@@ -1259,7 +1257,7 @@ private fun PlanContent(
                 Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .then(if (searchExpanded) Modifier.background(Color.Black) else Modifier)
+                    .then(if (searchExpanded) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier)
                     .windowInsetsPadding(WindowInsets.statusBars)
             ) {
                 Column {
@@ -1314,14 +1312,16 @@ private fun PlanContent(
                             val buttonColor = when {
                                 hasVehicles -> Color(0xFFEF4444)
                                 isActiveNoVehicles -> Color(0xFF9CA3AF)
-                                else -> PrimaryColor
+                                else -> MaterialTheme.colorScheme.surface
                             }
+                            // White reads on the red/grey active states; onSurface on the themed idle state.
+                            val buttonContentColor = if (hasVehicles || isActiveNoVehicles) Color.White else MaterialTheme.colorScheme.onSurface
 
                             Row(
                                 modifier = Modifier
                                     .shadow(4.dp, RoundedCornerShape(20.dp))
                                     .clip(RoundedCornerShape(20.dp))
-                                    .background(PrimaryColor)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .clickable { showStyleSheet = true }
                                     .height(40.dp)
                                     .padding(horizontal = 16.dp),
@@ -1330,7 +1330,7 @@ private fun PlanContent(
                                 Icon(
                                     Icons.Filled.Layers,
                                     contentDescription = "Style de carte",
-                                    tint = SecondaryColor,
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1362,13 +1362,13 @@ private fun PlanContent(
                                             .size(8.dp)
                                             .graphicsLayer { translationY = dotOffset }
                                     ) {
-                                        drawCircle(color = SecondaryColor)
+                                        drawCircle(color = buttonContentColor)
                                     }
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "LIVE",
                                         fontWeight = FontWeight.Bold,
-                                        color = SecondaryColor,
+                                        color = buttonContentColor,
                                         fontSize = 14.sp
                                     )
                                 }

@@ -41,8 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import eu.dotshell.pelo.generic.data.models.stops.Favorite
-import eu.dotshell.pelo.generic.ui.theme.PrimaryColor
-import eu.dotshell.pelo.generic.ui.theme.SecondaryColor
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Horizontal scrollable bar showing user-created favorites
@@ -64,7 +63,7 @@ fun FavoritesBar(
     val chipTextStyle = TextStyle(
         fontSize = 14.sp,
         fontWeight = FontWeight.Bold,
-        color = SecondaryColor
+        color = MaterialTheme.colorScheme.onSurface
     )
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {

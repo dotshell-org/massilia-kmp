@@ -21,8 +21,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.dotshell.pelo.generic.data.models.stops.Favorite
-import eu.dotshell.pelo.generic.ui.theme.PrimaryColor
-import eu.dotshell.pelo.generic.ui.theme.SecondaryColor
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Individual favorite item in the favorites bar
@@ -41,11 +40,11 @@ fun FavoriteItem(
         modifier = Modifier
             .shadow(4.dp, RoundedCornerShape(20.dp))
             .clip(RoundedCornerShape(20.dp))
-            .background(PrimaryColor)
+            .background(MaterialTheme.colorScheme.surface)
             .then(
                 if (isDarkMode) Modifier.border(
                     1.dp,
-                    Color(0xFF9CA3AF),
+                    MaterialTheme.colorScheme.outlineVariant,
                     RoundedCornerShape(20.dp)
                 ) else Modifier
             )
@@ -59,7 +58,7 @@ fun FavoriteItem(
         Icon(
             imageVector = icon,
             contentDescription = favorite.name,
-            tint = SecondaryColor,
+            tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(4.dp))
