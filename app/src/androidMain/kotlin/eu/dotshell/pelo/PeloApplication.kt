@@ -10,12 +10,19 @@ import eu.dotshell.pelo.generic.data.repository.offline.SchedulesRepository
 import eu.dotshell.pelo.generic.data.telemetry.TelemetryService
 import eu.dotshell.pelo.generic.service.TransportServiceProvider
 import eu.dotshell.pelo.platform.BackgroundScheduler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class PeloApplication : Application(), Configuration.Provider {
 
     companion object {
         private const val TAG = "PeloApplication"
     }
+
+    // Application-level coroutine scope for background initialization
+    private val appInitScope = CoroutineScope(Dispatchers.Default)
 
     // On-demand WorkManager initialization (replaces automatic ContentProvider init)
     // This defers non-critical startup work until WorkManager is first accessed.
@@ -28,12 +35,25 @@ class PeloApplication : Application(), Configuration.Provider {
         super.onCreate()
         Log.i(TAG, "PeloApplication onCreate()")
         
-        // Verify Raptor assets are available at startup
-        verifyRaptorAssets()
-        
-        TransportServiceProvider.initialize(this)
-        BackgroundScheduler(this).ensureTrafficAlertsScheduled()
-        initializeTelemetry()
+        // Move all heavy initialization to background to avoid blocking UI thread
+        appInitScope.launch {
+            // Verify Raptor assets are available at startup (async)
+            verifyRaptorAssets()
+            
+            // Initialize transport service provider (contains Retrofit instance)
+            TransportServiceProvider.initialize(this@PeloApplication)
+            
+            // Schedule traffic alerts in background
+            BackgroundScheduler(this@PeloApplication).ensureTrafficAlertsScheduled()
+            
+            // Initialize telemetry in background
+            initializeTelemetry()
+        }
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        appInitScope.cancel()
     }
 
     private fun initializeTelemetry() {

@@ -30,6 +30,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class NavigationModeForegroundService : Service() {
@@ -41,6 +43,7 @@ class NavigationModeForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var tripDetector: TripDetector? = null
     private var tripDetectorInitJob: Job? = null
+    private var isFinalizing = false
 
     private val screenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: android.content.Context?, intent: Intent?) {
@@ -81,15 +84,24 @@ class NavigationModeForegroundService : Service() {
     }
 
     override fun onDestroy() {
-        finalizeTripDetector()
         stopTracking()
         unregisterScreenReceiver()
-        // serviceScope is intentionally NOT cancelled here: the finalize launch needs to
-        // outlive onDestroy to complete the trip.completed emission and local persistence.
-        // The scope holds no foreground references after the detector's job finishes.
+        
+        // Finalize trip detector - this launches a job in serviceScope
+        finalizeTripDetector()
+        
+        // Cancel serviceScope after a reasonable delay to allow finalization to complete
+        // This prevents memory leaks from long-running services
         if (!NavigationModeStateStore.isNavigationActive(this)) {
             NavigationModeStateStore.setNavigationActive(this, false)
+            // Create a separate scope for cleanup to avoid circular dependency
+            // (can't cancel serviceScope from within serviceScope itself)
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(5000) // 5 seconds grace period
+                serviceScope.cancel()
+            }
         }
+        
         super.onDestroy()
     }
 
@@ -174,17 +186,23 @@ class NavigationModeForegroundService : Service() {
      * and onDestroy().
      *
      * We join the stop() job in our own [serviceScope] before disposing the detector so that
-     * the trip.completed emission and local persistence have time to complete. The serviceScope
-     * itself is only cancelled in onDestroy *after* this method returns.
+     * the trip.completed emission and local persistence have time to complete.
      */
     private fun finalizeTripDetector() {
+        if (isFinalizing) return
+        isFinalizing = true
+        
         tripDetectorInitJob?.cancel()
         tripDetectorInitJob = null
         val detector = tripDetector ?: return
         tripDetector = null
         serviceScope.launch {
-            detector.stop().join()
-            detector.dispose()
+            try {
+                detector.stop().join()
+                detector.dispose()
+            } finally {
+                isFinalizing = false
+            }
         }
     }
 
