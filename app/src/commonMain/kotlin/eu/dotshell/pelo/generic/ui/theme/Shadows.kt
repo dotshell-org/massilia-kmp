@@ -2,12 +2,8 @@ package eu.dotshell.pelo.generic.ui.theme
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -30,15 +26,14 @@ val ShadowElevation = object {
 }
 
 /**
- * Standard shadow colors based on theme
+ * Standard shadow alpha values based on elevation
  */
-@Composable
-fun shadowColor(elevation: Dp = ShadowElevation.medium): Color {
+private fun getShadowAlpha(elevation: Dp): Float {
     return when {
-        elevation <= ShadowElevation.small -> Color.Black.copy(alpha = 0.12f)
-        elevation <= ShadowElevation.medium -> Color.Black.copy(alpha = 0.16f)
-        elevation <= ShadowElevation.large -> Color.Black.copy(alpha = 0.20f)
-        else -> Color.Black.copy(alpha = 0.24f)
+        elevation <= ShadowElevation.small -> 0.12f
+        elevation <= ShadowElevation.medium -> 0.16f
+        elevation <= ShadowElevation.large -> 0.20f
+        else -> 0.24f
     }
 }
 
@@ -48,15 +43,11 @@ fun shadowColor(elevation: Dp = ShadowElevation.medium): Color {
  */
 fun Modifier.buttonElevation(
     elevation: Dp = ShadowElevation.medium
-): Modifier = composed {
-    val shadowColor = shadowColor(elevation)
-    
-    this.graphicsLayer {
-        shadowElevation = elevation
-        shadowColor = shadowColor
-        shape = RectangleShape
-        clip = false
-    }
+): Modifier = this.graphicsLayer {
+    shadowElevation = elevation
+    shadowColor = Color.Black.copy(alpha = getShadowAlpha(elevation))
+    shape = RectangleShape
+    clip = false
 }
 
 /**
@@ -65,30 +56,22 @@ fun Modifier.buttonElevation(
  */
 fun Modifier.cardElevation(
     elevation: Dp = ShadowElevation.medium
-): Modifier = composed {
-    val shadowColor = shadowColor(elevation)
-    
-    this.graphicsLayer {
-        shadowElevation = elevation
-        shadowColor = shadowColor
-        shape = RectangleShape
-        clip = false
-    }
+): Modifier = this.graphicsLayer {
+    shadowElevation = elevation
+    shadowColor = Color.Black.copy(alpha = getShadowAlpha(elevation))
+    shape = RectangleShape
+    clip = false
 }
 
 /**
  * Floating action button elevation
  * Higher elevation for FABs
  */
-fun Modifier.fabElevation(): Modifier = composed {
-    val shadowColor = shadowColor(ShadowElevation.xlarge)
-    
-    this.graphicsLayer {
-        shadowElevation = ShadowElevation.xlarge
-        shadowColor = shadowColor
-        shape = RectangleShape
-        clip = false
-    }
+fun Modifier.fabElevation(): Modifier = this.graphicsLayer {
+    shadowElevation = ShadowElevation.xlarge
+    shadowColor = Color.Black.copy(alpha = getShadowAlpha(ShadowElevation.xlarge))
+    shape = RectangleShape
+    clip = false
 }
 
 /**
@@ -101,13 +84,11 @@ fun ElevatedSurface(
     shape: Shape = RectangleShape,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val shadowColor = shadowColor(elevation)
-    
     Box(
         modifier = Modifier
             .graphicsLayer {
                 this.shadowElevation = elevation
-                this.shadowColor = shadowColor
+                this.shadowColor = Color.Black.copy(alpha = getShadowAlpha(elevation))
                 this.shape = shape
                 this.clip = false
             }
@@ -119,13 +100,21 @@ fun ElevatedSurface(
 /**
  * Standard shadow for icons and small elements
  */
-fun Modifier.iconShadow(): Modifier = composed {
-    val shadowColor = shadowColor(ShadowElevation.small)
-    
-    this.graphicsLayer {
-        shadowElevation = ShadowElevation.small
-        shadowColor = shadowColor
-        shape = RectangleShape
-        clip = false
-    }
+fun Modifier.iconShadow(): Modifier = this.graphicsLayer {
+    shadowElevation = ShadowElevation.small
+    shadowColor = Color.Black.copy(alpha = getShadowAlpha(ShadowElevation.small))
+    shape = RectangleShape
+    clip = false
+}
+
+/**
+ * Extension to add elevation to any modifier
+ */
+fun Modifier.withElevation(
+    elevation: Dp
+): Modifier = this.graphicsLayer {
+    shadowElevation = elevation
+    shadowColor = Color.Black.copy(alpha = getShadowAlpha(elevation))
+    shape = RectangleShape
+    clip = false
 }

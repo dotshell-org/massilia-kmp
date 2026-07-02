@@ -26,29 +26,29 @@ import androidx.compose.ui.unit.dp
 
 // Standard button elevation
 val ButtonElevations = ButtonDefaults.buttonElevation(
-    defaultElevation = ShadowElevation.small,
-    pressedElevation = ShadowElevation.none,
-    focusedElevation = ShadowElevation.medium,
-    hoveredElevation = ShadowElevation.medium,
-    disabledElevation = ShadowElevation.none
+    defaultElevation = ShadowElevation.small.value,
+    pressedElevation = ShadowElevation.none.value,
+    focusedElevation = ShadowElevation.medium.value,
+    hoveredElevation = ShadowElevation.medium.value,
+    disabledElevation = ShadowElevation.none.value
 )
 
 // Elevated button elevation (for primary actions)
 val ElevatedButtonElevations = ButtonDefaults.buttonElevation(
-    defaultElevation = ShadowElevation.medium,
-    pressedElevation = ShadowElevation.small,
-    focusedElevation = ShadowElevation.large,
-    hoveredElevation = ShadowElevation.large,
-    disabledElevation = ShadowElevation.none
+    defaultElevation = ShadowElevation.medium.value,
+    pressedElevation = ShadowElevation.small.value,
+    focusedElevation = ShadowElevation.large.value,
+    hoveredElevation = ShadowElevation.large.value,
+    disabledElevation = ShadowElevation.none.value
 )
 
 // FAB elevation
 val FabElevations = ButtonDefaults.buttonElevation(
-    defaultElevation = ShadowElevation.xlarge,
-    pressedElevation = ShadowElevation.large,
-    focusedElevation = ShadowElevation.xlarge,
-    hoveredElevation = ShadowElevation.xlarge,
-    disabledElevation = ShadowElevation.none
+    defaultElevation = ShadowElevation.xlarge.value,
+    pressedElevation = ShadowElevation.large.value,
+    focusedElevation = ShadowElevation.xlarge.value,
+    hoveredElevation = ShadowElevation.xlarge.value,
+    disabledElevation = ShadowElevation.none.value
 )
 
 /**
@@ -62,7 +62,7 @@ fun PeloFilledButton(
     shape: Shape = MaterialTheme.shapes.medium,
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     elevation: ButtonElevation? = ButtonElevations,
-    border: Modifier? = null,
+    border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit
 ) {
@@ -93,7 +93,7 @@ fun PeloElevatedButton(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     ),
     elevation: ButtonElevation? = ElevatedButtonElevations,
-    border: Modifier? = null,
+    border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit
 ) {
@@ -121,7 +121,7 @@ fun PeloOutlinedButton(
     shape: Shape = MaterialTheme.shapes.medium,
     colors: ButtonColors = ButtonDefaults.outlinedButtonColors(),
     elevation: ButtonElevation? = ButtonElevations,
-    border: Modifier? = null,
+    border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit
 ) {
@@ -170,7 +170,6 @@ fun PeloIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    shape: Shape = MaterialTheme.shapes.small,
     colors: IconButtonColors = IconButtonDefaults.iconButtonColors(),
     content: @Composable () -> Unit
 ) {
@@ -178,7 +177,6 @@ fun PeloIconButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        shape = shape,
         colors = colors,
         content = content
     )
@@ -195,7 +193,7 @@ fun PeloFilledTonalButton(
     shape: Shape = MaterialTheme.shapes.medium,
     colors: ButtonColors = ButtonDefaults.filledTonalButtonColors(),
     elevation: ButtonElevation? = ButtonElevations,
-    border: Modifier? = null,
+    border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit
 ) {
