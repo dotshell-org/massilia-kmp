@@ -2,15 +2,14 @@ package eu.dotshell.pelo.specific
 
 import eu.dotshell.pelo.generic.data.models.geojson.FeatureCollection
 import eu.dotshell.pelo.generic.data.models.geojson.StopCollection
-import eu.dotshell.pelo.generic.data.models.geojson.Feature
 import eu.dotshell.pelo.generic.data.network.transport.TransportApi
 import eu.dotshell.pelo.generic.data.network.transport.TransportLineService
 import eu.dotshell.pelo.generic.data.network.transport.TransportLinesQuery
 import eu.dotshell.pelo.generic.service.TransportServiceProvider
 
 /**
- * Lyon-specific implementation of [TransportLineService].
- * Multiplatform: delegates to [TransportApi] (LyonKtorClient) instead of Retrofit.
+ * Marseille RTM implementation of [TransportLineService].
+ * Delegates to [TransportApi] (RtmLocalClient) which serves everything from bundled data.
  */
 class TransportLineServiceImpl : TransportLineService {
 
@@ -20,7 +19,6 @@ class TransportLineServiceImpl : TransportLineService {
         val all = transportApi.getLines(TransportLinesQuery.StrongLines)
         return all.copy(features = all.features.filter {
             it.properties.transportType.equals("METRO", ignoreCase = true)
-                    || it.properties.lineName.uppercase() in listOf("A", "B", "C", "D")
         })
     }
 
@@ -40,14 +38,15 @@ class TransportLineServiceImpl : TransportLineService {
     }
 
     override suspend fun getNavigoneLines(): FeatureCollection {
+        // RTM: navettes maritimes + ferry boat (GTFS route_type 4)
         return transportApi.getLines(TransportLinesQuery.LineByName("navigone"))
     }
 
     override suspend fun getTrambusLines(): FeatureCollection {
-        // Trambus lines start with "TB"
-        val allBus = transportApi.getLines(TransportLinesQuery.BusPage(startIndex = 0, count = 1000))
+        // RTM equivalent of a "trambus" tier: the B1-B5 BHNS lines
+        val allBus = transportApi.getLines(TransportLinesQuery.BusPage(startIndex = 0, count = 10000))
         return allBus.copy(features = allBus.features.filter {
-            it.properties.lineName.startsWith("TB", ignoreCase = true)
+            it.properties.lineName.matches(Regex("^B\\d$", RegexOption.IGNORE_CASE))
         })
     }
 

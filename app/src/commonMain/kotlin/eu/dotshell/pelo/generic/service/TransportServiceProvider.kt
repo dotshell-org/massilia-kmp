@@ -16,7 +16,7 @@ import eu.dotshell.pelo.generic.data.config.AppTrafficAlertsService
 import eu.dotshell.pelo.generic.data.config.AppVehiclePositionsService
 import eu.dotshell.pelo.generic.ui.screens.about.GenericAboutScreen
 import eu.dotshell.pelo.generic.ui.theme.GenericTransportTheme
-import eu.dotshell.pelo.specific.data.network.LyonKtorClient
+import eu.dotshell.pelo.specific.data.network.RtmLocalClient
 import eu.dotshell.pelo.generic.data.config.AppMapStyleConfig
 import eu.dotshell.pelo.platform.FileSystem
 import eu.dotshell.pelo.platform.PlatformContext
@@ -55,8 +55,8 @@ object TransportServiceProvider {
         // Transport line service
         transportLineService = TransportLineServiceImpl()
 
-        // Create the API using the KMP-compatible Ktor client (commonMain)
-        transportApi = LyonKtorClient(transportConfig.baseUrl)
+        // Create the API backed by bundled RTM data (no network)
+        transportApi = RtmLocalClient(context)
 
         // Rules for matching/normalizing line names
         transportLineRules = AppTransportLineRules(appConfig.rules)
