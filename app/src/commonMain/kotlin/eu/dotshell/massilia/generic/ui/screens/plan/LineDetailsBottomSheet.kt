@@ -82,6 +82,7 @@ import eu.dotshell.massilia.generic.ui.viewmodel.TransportLinesUiState
 import eu.dotshell.massilia.generic.ui.viewmodel.TransportViewModelInterface
 import eu.dotshell.massilia.generic.utils.LineColorHelper
 import eu.dotshell.massilia.generic.utils.graphics.LineIconResolver
+import eu.dotshell.massilia.generic.utils.schedule.DepartureManager
 import eu.dotshell.massilia.platform.randomId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -115,7 +116,9 @@ private fun getScheduleColorBasedOnTime(scheduleTime: String): Color {
 
         val hour = parts[0].toInt()
         val minute = parts[1].toInt()
-        val schedule = LocalTime(hour, minute)
+        // GTFS night-run hours ("25:30" = 01:30) would make LocalTime throw;
+        // the day-wrap correction below makes the modulo equivalent anyway.
+        val schedule = LocalTime(hour % 24, minute)
 
         var diffMinutes = (schedule.toSecondOfDay() - now.toSecondOfDay()) / 60
         if (diffMinutes < 0) {
@@ -145,7 +148,7 @@ private fun getMinutesUntil(scheduleTime: String): Long? {
         if (parts.size < 2) return null
         val hour = parts[0].toInt()
         val minute = parts[1].toInt()
-        val schedule = LocalTime(hour, minute)
+        val schedule = LocalTime(hour % 24, minute)
         var diff = (schedule.toSecondOfDay() - now.toSecondOfDay()) / 60
         if (diff < 0) {
             diff += 24 * 60
@@ -868,7 +871,7 @@ private fun NextSchedulesSection(
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = schedule,
+                            text = DepartureManager.formatDisplayTime(schedule),
                             style = timeStyle,
                             color = getScheduleColorBasedOnTime(schedule)
                         )
