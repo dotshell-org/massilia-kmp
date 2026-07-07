@@ -1341,7 +1341,7 @@ private fun PlanContent(
                             )
 
                             val buttonColor = when {
-                                hasVehicles -> Color(0xFF009FE3)
+                                hasVehicles -> Color(0xFF02AEDA)
                                 isActiveNoVehicles -> Color(0xFF9CA3AF)
                                 else -> MaterialTheme.colorScheme.surface
                             }
