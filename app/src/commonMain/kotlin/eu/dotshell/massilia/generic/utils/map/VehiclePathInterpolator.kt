@@ -2,6 +2,7 @@ package eu.dotshell.massilia.generic.utils.map
 
 import eu.dotshell.massilia.generic.data.models.realtime.vehiclepositions.SimpleVehiclePosition
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sqrt
@@ -62,26 +63,46 @@ class VehiclePathInterpolator(traces: Map<String, List<List<List<Double>>>>) {
         val linear = Linear(from.latitude, from.longitude, to.latitude, to.longitude)
         val polylines = polylinesByLine[to.lineName.trim().uppercase()] ?: return linear
 
-        // Pick the path (direction/variant) closest to BOTH endpoints
+        // Anchor on the destination's best projection, then take the START
+        // projection nearest to it IN ABSCISSA among all close-enough
+        // candidates: on overlapping passes or branch joins, the purely
+        // nearest projection can sit kilometers away along the path, which
+        // made vehicles race down their line. Prefer the interpretation
+        // where the vehicle moved least.
         var bestPolyline: Polyline? = null
         var bestS0 = 0.0
         var bestS1 = 0.0
-        var bestScore = Double.MAX_VALUE
+        var bestGlide = Double.MAX_VALUE
         for (polyline in polylines) {
-            val p0 = polyline.project(from.longitude, from.latitude)
             val p1 = polyline.project(to.longitude, to.latitude)
-            val score = max(p0.distanceMeters, p1.distanceMeters)
-            if (score < bestScore) {
-                bestScore = score
+            if (p1.distanceMeters > MAX_SNAP_METERS) continue
+            val s0 = polyline.projectNearestAbscissa(
+                from.longitude, from.latitude, p1.abscissa, MAX_SNAP_METERS
+            ) ?: continue
+            val glide = abs(p1.abscissa - s0)
+            if (glide < bestGlide) {
+                bestGlide = glide
                 bestPolyline = polyline
-                bestS0 = p0.abscissa
+                bestS0 = s0
                 bestS1 = p1.abscissa
             }
         }
         val polyline = bestPolyline ?: return linear
-        if (bestScore > MAX_SNAP_METERS) return linear
+
+        // Plausibility: a vehicle covers at most ~2 km per feed tick, and a
+        // path much longer than the straight segment means the projections
+        // landed on the wrong branch — glide straight instead.
+        val straightMeters = straightDistanceMeters(from, to)
+        if (bestGlide > MAX_GLIDE_METERS || bestGlide > max(4.0 * straightMeters, 400.0)) return linear
         if (bestS0 == bestS1) return Static(to.latitude, to.longitude)
         return AlongPath(polyline, bestS0, bestS1)
+    }
+
+    private fun straightDistanceMeters(from: SimpleVehiclePosition, to: SimpleVehiclePosition): Double {
+        val metersPerDegLon = METERS_PER_DEG_LAT * cos(from.latitude * PI / 180.0)
+        val dx = (to.longitude - from.longitude) * metersPerDegLon
+        val dy = (to.latitude - from.latitude) * METERS_PER_DEG_LAT
+        return sqrt(dx * dx + dy * dy)
     }
 
     private class Projection(val abscissa: Double, val distanceMeters: Double)
@@ -131,6 +152,41 @@ class VehiclePathInterpolator(traces: Map<String, List<List<List<Double>>>>) {
             return Projection(bestS, sqrt(bestDistSq))
         }
 
+        /**
+         * Among every projection closer than [maxMeters], returns the abscissa
+         * nearest to [referenceAbscissa] — disambiguates overlapping passes.
+         */
+        fun projectNearestAbscissa(
+            lon: Double,
+            lat: Double,
+            referenceAbscissa: Double,
+            maxMeters: Double
+        ): Double? {
+            val px = lon * metersPerDegLon
+            val py = lat * METERS_PER_DEG_LAT
+            val maxDistSq = maxMeters * maxMeters
+            var bestS: Double? = null
+            var bestDelta = Double.MAX_VALUE
+            for (i in 0 until xs.size - 1) {
+                val ax = xs[i]; val ay = ys[i]
+                val bx = xs[i + 1]; val by = ys[i + 1]
+                val abx = bx - ax; val aby = by - ay
+                val lengthSq = abx * abx + aby * aby
+                val t = if (lengthSq == 0.0) 0.0
+                else (((px - ax) * abx + (py - ay) * aby) / lengthSq).coerceIn(0.0, 1.0)
+                val cx = ax + abx * t; val cy = ay + aby * t
+                val dx = px - cx; val dy = py - cy
+                if (dx * dx + dy * dy > maxDistSq) continue
+                val s = cumulative[i] + sqrt(lengthSq) * t
+                val delta = abs(s - referenceAbscissa)
+                if (delta < bestDelta) {
+                    bestDelta = delta
+                    bestS = s
+                }
+            }
+            return bestS
+        }
+
         /** Point at curvilinear abscissa [s] (clamped) as (latitude, longitude). */
         fun pointAt(s: Double): Pair<Double, Double> {
             val clamped = s.coerceIn(0.0, cumulative.last())
@@ -151,5 +207,9 @@ class VehiclePathInterpolator(traces: Map<String, List<List<List<Double>>>>) {
         // Beyond this distance from every path of its line, a vehicle is
         // considered off-route (deviation) and glides on a straight segment.
         private const val MAX_SNAP_METERS = 120.0
+
+        // No vehicle covers more than ~2 km between two feed ticks (1 min);
+        // a longer along-path glide means a mis-projection.
+        private const val MAX_GLIDE_METERS = 2_000.0
     }
 }
