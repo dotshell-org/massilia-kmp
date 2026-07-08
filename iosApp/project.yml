@@ -1,0 +1,84 @@
+name: iosApp
+options:
+  bundleIdPrefix: eu.dotshell
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+schemes:
+  iosApp:
+    build:
+      targets:
+        iosApp: all
+    run:
+      config: Debug
+packages:
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    exactVersion: 6.25.1
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Massilia
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        CADisableMinimumFrameDurationOnPhone: true
+        UILaunchScreen: {}
+        UIRequiresFullScreen: false
+        NSLocationWhenInUseUsageDescription: "Massilia utilise votre position pour centrer la carte et calculer des itinéraires."
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIBackgroundModes:
+          - fetch
+          - processing
+        BGTaskSchedulerPermittedIdentifiers:
+          - eu.dotshell.massilia.telemetryUpload
+          - eu.dotshell.massilia.trafficAlerts
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: eu.dotshell.massilia
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+        FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) ../app/build/bin/iosArm64/debugFramework
+        FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]: $(inherited) ../app/build/bin/iosSimulatorArm64/debugFramework
+    dependencies:
+      - framework: ../app/build/bin/iosSimulatorArm64/debugFramework/ComposeApp.framework
+        embed: false
+      - package: MapLibre
+        product: MapLibre
+    preBuildScripts:
+      - name: Build Compose framework (Kotlin/Native)
+        basedOnDependencyAnalysis: false
+        script: |
+          export JAVA_HOME="$HOME/Library/Java/jdk-21.0.11+10/Contents/Home"
+          export ANDROID_HOME="$HOME/Library/Android/sdk"
+          "$PROJECT_DIR/../gradlew" -p "$PROJECT_DIR/.." :app:linkDebugFrameworkIosSimulatorArm64
+    postBuildScripts:
+      - name: Copy Compose resources into the app bundle
+        basedOnDependencyAnalysis: false
+        script: |
+          # Copy the whole prepared composeResources tree (files/ for FileSystem.ios +
+          # drawable/ + values/ for the Compose Resources `Res` API) into the app bundle,
+          # under the package-prefixed path the iOS Res reader expects:
+          #   <bundle>/compose-resources/composeResources/<packageOfResClass>/...
+          SRC="$PROJECT_DIR/../app/build/generated/compose/resourceGenerator/preparedResources/commonMain/composeResources"
+          DST="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/compose-resources/composeResources/eu.dotshell.massilia.resources"
+          if [ -d "$SRC" ]; then
+            mkdir -p "$DST"
+            rsync -a --delete "$SRC/" "$DST/"
+            echo "Copied Compose resources -> $DST"
+          else
+            echo "warning: Compose resources not found at $SRC"
+          fi

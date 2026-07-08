@@ -1,0 +1,39 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.idea
+
+# GTFS data files (too large for git)
+gtfs_processed/
+scripts/.venv
+
+# Keystore files
+*.jks
+*.keystore
+/nul
+
+.kotlin
+app/build
+
+# iOS / XcodeGen — regenerate the project with:
+#   /tmp/xcodegen-dist/xcodegen/bin/xcodegen generate --spec iosApp/project.yml
+iosApp/iosApp.xcodeproj/
+iosApp/Info.plist
+**/xcuserdata/
+.swiftpm/
+
+.claude
+# Kotlin toolchain working dir
+.kotlin/

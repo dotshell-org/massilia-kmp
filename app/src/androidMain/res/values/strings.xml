@@ -1,0 +1,24 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">Massilia</string>
+    <string name="map_style_preview">Aperçu du style de carte</string>
+    <string name="offline_available">Données hors ligne disponibles</string>
+    <string name="offline_unavailable">Données hors ligne non disponibles</string>
+    <string name="cancel_download">Annuler le téléchargement</string>
+    <string name="download_data">Télécharger les données</string>
+    <string name="selected" tools:override="true">Sélectionné</string>
+    <string name="downloaded">Téléchargé</string>
+    <string name="stale_data_warning">Avertissement de données anciennes</string>
+    <string name="category_header">Catégorie</string>
+    <string name="line_icon">Icône de la ligne %s</string>
+    <string name="bus_mode_icon">Icône de mode bus</string>
+    <string name="todo">TODO</string>
+    <string name="chargement">Chargement…</string>
+    <string name="navigation_mode_notification_channel_name">Navigation active</string>
+    <string name="navigation_mode_notification_channel_description">Maintient le mode navigation actif et les positions a jour</string>
+    <string name="navigation_mode_notification_title">Mode navigation en cours</string>
+    <string name="navigation_mode_notification_text">Massilia reste visible sur ecran verrouille et met a jour votre position.</string>
+    <string name="navigation_mode_wakeup_channel_name">Reveil navigation</string>
+    <string name="navigation_mode_wakeup_channel_description">Affiche Massilia au reveil de l ecran pendant la navigation</string>
+    <string name="navigation_mode_wakeup_title">Navigation active</string>
+    <string name="navigation_mode_wakeup_text">Retour a la navigation</string>
+</resources>
