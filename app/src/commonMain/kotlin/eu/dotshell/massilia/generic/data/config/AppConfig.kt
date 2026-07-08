@@ -44,7 +44,10 @@ data class TransportConfigData(
     val primaryColor: String,
     val secondaryColor: String,
     val trafficAlertsBaseUrl: String,
-    val vehiclePositionsStreamUrl: String
+    val vehiclePositionsStreamUrl: String,
+    // Commercial line name -> operator internal line id (e.g. "B1" -> "139",
+    // giving "RTM:LNE:139") used by the real-time vehicle positions service.
+    val realtimeLineIds: Map<String, String> = emptyMap()
 )
 
 @Serializable

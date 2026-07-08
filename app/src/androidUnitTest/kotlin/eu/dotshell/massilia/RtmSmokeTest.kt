@@ -136,12 +136,19 @@ class RtmSmokeTest {
         assertEquals(125, config.lineColors.rules.size)
         assertTrue("M1 is a strong line", "M1" in config.rules.strongLines)
         assertFalse(config.realtime.trafficAlertsEnabled)
-        // Live vehicle positions are back through the SIRI VM service of La Métropole Mobilité
+        // Live vehicle positions come from the webservice of RTM's own interactive map
         assertTrue(config.realtime.vehiclePositionsEnabled)
         assertTrue(
-            "the stream URL must point at the SIRI endpoint",
-            config.transport.vehiclePositionsStreamUrl.startsWith("https://siri.lametropolemobilite.fr/")
+            "the stream URL must point at the RTM interactive map webservice",
+            config.transport.vehiclePositionsStreamUrl.startsWith("https://carte-interactive.rtm.fr/")
         )
+        assertEquals(125, config.transport.realtimeLineIds.size)
+        assertEquals("116", config.transport.realtimeLineIds["M1"])
+        assertEquals("139", config.transport.realtimeLineIds["B1"])
+        // Every strong line must be pollable in global live mode
+        config.rules.strongLines.forEach { line ->
+            assertTrue("strong line $line needs a realtime id", line in config.transport.realtimeLineIds)
+        }
         assertFalse(config.realtime.userStopAlertsEnabled)
         assertEquals(false, config.telemetry?.enabled)
         assertEquals("marseille-rtm", config.telemetry?.networkCode)
