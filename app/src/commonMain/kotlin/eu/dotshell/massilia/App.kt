@@ -102,7 +102,11 @@ import eu.dotshell.massilia.generic.data.repository.offline.mapstyle.MapStyleRep
 import eu.dotshell.massilia.generic.service.TransportServiceProvider
 import eu.dotshell.massilia.generic.utils.graphics.LineIconResolver
 import eu.dotshell.massilia.generic.utils.map.MapStyleUtils
+import eu.dotshell.massilia.generic.utils.map.VehiclePathInterpolator
 import eu.dotshell.massilia.generic.utils.map.toVehiclesGeoJson
+import eu.dotshell.massilia.generic.data.models.realtime.vehiclepositions.SimpleVehiclePosition
+import kotlinx.coroutines.delay
+import kotlinx.datetime.Clock
 import eu.dotshell.massilia.generic.utils.map.toItinerariesGeoJson
 import eu.dotshell.massilia.generic.utils.map.calculateJourneyTrace
 import eu.dotshell.massilia.generic.data.repository.itinerary.itinerary.JourneyResult
@@ -410,8 +414,54 @@ private fun RootScaffold(
         }
     }
 
-    val vehiclesGeoJson = remember(activeVehiclePositions) {
-        if (activeVehiclePositions.isEmpty()) null else toVehiclesGeoJson(activeVehiclePositions)
+    // The RTM feed only ticks once per minute, so raw positions teleport.
+    // Between two ticks, vehicles glide along their line's trace (projection
+    // of both endpoints on the trace, then interpolation of the curvilinear
+    // abscissa) — a straight-line glide would cut through buildings.
+    val vehicleInterpolator = remember(linesUiState) {
+        val lines = when (val s = linesUiState) {
+            is TransportLinesUiState.Success -> s.lines
+            is TransportLinesUiState.PartialSuccess -> s.lines
+            else -> emptyList()
+        }
+        val traces = HashMap<String, MutableList<List<List<Double>>>>()
+        lines.forEach { feat ->
+            val name = feat.properties.lineName.trim().uppercase()
+            if (name.isNotEmpty() && feat.multiLineStringGeometry.coordinates.isNotEmpty()) {
+                traces.getOrPut(name) { mutableListOf() }.addAll(feat.multiLineStringGeometry.coordinates)
+            }
+        }
+        VehiclePathInterpolator(traces)
+    }
+    var displayedVehiclePositions by remember { mutableStateOf<List<SimpleVehiclePosition>>(emptyList()) }
+    LaunchedEffect(activeVehiclePositions, vehicleInterpolator) {
+        if (activeVehiclePositions.isEmpty()) {
+            displayedVehiclePositions = emptyList()
+            return@LaunchedEffect
+        }
+        // Feed ticks every ~60 s: glide almost until the next tick, then rest.
+        val glideDurationMs = 55_000L
+        val frameMs = 600L
+        val previousById = displayedVehiclePositions.associateBy { it.vehicleId }
+        val plans = activeVehiclePositions.map { target ->
+            target to vehicleInterpolator.plan(previousById[target.vehicleId], target)
+        }
+        val startMs = Clock.System.now().toEpochMilliseconds()
+        while (true) {
+            val elapsed = Clock.System.now().toEpochMilliseconds() - startMs
+            val fraction = (elapsed.toDouble() / glideDurationMs).coerceAtMost(1.0)
+            displayedVehiclePositions = plans.map { (target, plan) ->
+                if (fraction >= 1.0) target else {
+                    val (lat, lon) = plan.at(fraction)
+                    target.copy(latitude = lat, longitude = lon)
+                }
+            }
+            if (fraction >= 1.0) break
+            delay(frameMs)
+        }
+    }
+    val vehiclesGeoJson = remember(displayedVehiclePositions) {
+        if (displayedVehiclePositions.isEmpty()) null else toVehiclesGeoJson(displayedVehiclePositions)
     }
     val vehicleIconName = remember(selectedLine?.lineName) {
         selectedLine?.lineName?.let { LineIconResolver.getDrawableNameForLineName(it) }
