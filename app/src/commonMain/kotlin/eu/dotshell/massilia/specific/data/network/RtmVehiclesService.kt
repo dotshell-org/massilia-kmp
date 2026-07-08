@@ -29,8 +29,10 @@ private const val TAG = "RtmVehicles"
  *
  * Polling mirrors the behaviour of RTM's own web client: a tiny
  * /Vehicles/LastUpdate probe on every tick, with the full /Vehicles fetch
- * only when the feed actually changed (their site does this every 5 s per
- * visitor; we poll at 10 s).
+ * only when the feed actually changed. The upstream feed itself only
+ * refreshes once per minute (measured: ticks at hh:mm:42), so a 5 s probe
+ * — the same rate as RTM's own site — just minimizes how late we catch
+ * each minute-tick; it costs 13 bytes per probe.
  */
 class RtmVehiclesService(
     private val config: TransportConfigData,
@@ -110,6 +112,6 @@ class RtmVehiclesService(
     }
 
     companion object {
-        private const val POLL_INTERVAL_MS = 10_000L
+        private const val POLL_INTERVAL_MS = 5_000L
     }
 }
