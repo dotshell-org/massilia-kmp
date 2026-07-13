@@ -132,7 +132,6 @@ import eu.dotshell.massilia.generic.data.local_history.LocalHistoryStorage
 import eu.dotshell.massilia.generic.data.telemetry.TelemetryEmitter
 import eu.dotshell.massilia.platform.Settings
 import eu.dotshell.massilia.generic.ui.screens.settings.ItinerarySettingsScreen
-import eu.dotshell.massilia.generic.ui.screens.settings.OfflineSettingsScreen
 import eu.dotshell.massilia.generic.ui.screens.settings.SettingsScreen
 import eu.dotshell.massilia.generic.ui.screens.settings.TelemetrySettingsScreen
 import eu.dotshell.massilia.generic.ui.screens.settings.ThemeSettingsScreen
@@ -607,10 +606,16 @@ private fun RootScaffold(
         itineraryActive = true
     }
 
-    LaunchedEffect(selectedStation?.nom, stops) {
-        val stName = selectedStation?.nom
+    LaunchedEffect(selectedStation?.nom, selectedLine?.currentStationName, stops) {
+        val stName = selectedStation?.nom ?: selectedLine?.currentStationName
         if (!stName.isNullOrBlank() && stops != null) {
-            val stop = stops.firstOrNull { it.properties.nom.equals(stName, ignoreCase = true) }
+            val stop = if (selectedLine?.lineName != null) {
+                viewModel.getStopsFeaturesForLine(selectedLine!!.lineName)
+                    .firstOrNull { it.properties.nom.equals(stName, ignoreCase = true) }
+                    ?: stops.firstOrNull { it.properties.nom.equals(stName, ignoreCase = true) }
+            } else {
+                stops.firstOrNull { it.properties.nom.equals(stName, ignoreCase = true) }
+            }
             if (stop != null && stop.geometry.coordinates.size >= 2) {
                 manualFocusCenter = Position(latitude = stop.geometry.coordinates[1], longitude = stop.geometry.coordinates[0])
                 manualFocusZoom = 18.0
@@ -620,7 +625,7 @@ private fun RootScaffold(
 
     LaunchedEffect(selectedLine?.lineName, linesUiState) {
         val ln = selectedLine?.lineName
-        if (!ln.isNullOrBlank()) {
+        if (!ln.isNullOrBlank() && selectedLine?.currentStationName.isNullOrBlank()) {
             val allLines = when (val s = linesUiState) {
                 is TransportLinesUiState.Success -> s.lines
                 is TransportLinesUiState.PartialSuccess -> s.lines
@@ -1529,7 +1534,6 @@ private fun SettingsTab(viewModel: TransportViewModel, modifier: Modifier = Modi
             )
             "credits" -> CreditsScreen(onBackClick = navigateBack)
             "contact" -> ContactScreen(onBackClick = navigateBack)
-            "offline" -> OfflineSettingsScreen(viewModel = viewModel, onBackClick = navigateBack)
 
             "itinerary" -> {
                 val cfg = remember { AppConfigLoader.getConfig().itinerarySettings }
@@ -1572,7 +1576,6 @@ private fun SettingsTab(viewModel: TransportViewModel, modifier: Modifier = Modi
                 onLegalClick = { navigateTo("legal") },
                 onCreditsClick = { navigateTo("credits") },
                 onContactClick = { navigateTo("contact") },
-                onOfflineClick = {},
                 onTelemetryClick = {},
                 onThemeClick = {},
 
@@ -1585,7 +1588,6 @@ private fun SettingsTab(viewModel: TransportViewModel, modifier: Modifier = Modi
                 onLegalClick = {},
                 onCreditsClick = {},
                 onContactClick = {},
-                onOfflineClick = { navigateTo("offline") },
                 onTelemetryClick = { navigateTo("telemetry") },
                 onAboutClick = { navigateTo("about") },
                 onThemeClick = { navigateTo("theme") },
