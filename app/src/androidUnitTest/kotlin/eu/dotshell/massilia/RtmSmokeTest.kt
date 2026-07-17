@@ -70,6 +70,40 @@ class RtmSmokeTest {
     }
 
     @Test
+    fun raptorRoutesFromCoordinatePointWithWalkLegs() {
+        // raptor-kmp 2.0: itineraries from an arbitrary coordinate (geocoded address / GPS).
+        // Walk legs use stop index -1 and must carry both endpoint coordinates.
+        val library = RaptorLibrary(
+            listOf(
+                PeriodData(
+                    periodId = "school_on_weekdays",
+                    stopsBytes = asset("raptor/stops_school_on_weekdays.bin").readBytes(),
+                    routesBytes = asset("raptor/routes_school_on_weekdays.bin").readBytes()
+                )
+            )
+        )
+        val destinations = library.searchStopsByName("").filter { it.name.equals("Castellane", true) }
+        assertTrue("Castellane stops found", destinations.isNotEmpty())
+
+        val journeys = library.getOptimizedPaths(
+            origin = io.raptor.Location.Point(43.2955, 5.3744), // Vieux-Port
+            destination = io.raptor.Location.StopIds(destinations.map { it.id }),
+            departureTime = 9 * 3600
+        )
+        assertTrue("at least one journey from the coordinate", journeys.isNotEmpty())
+
+        val transitJourney = journeys.first { legs -> legs.any { !it.isTransfer } }
+        val access = transitJourney.first()
+        assertEquals(io.raptor.core.LegType.WALK_ACCESS, access.legType)
+        assertEquals(-1, access.fromStopIndex)
+        assertTrue(
+            "the walk leg carries both endpoint coordinates",
+            access.fromLat != null && access.fromLon != null && access.toLat != null && access.toLon != null
+        )
+        assertTrue("the ride boards a real stop", transitJourney.first { !it.isTransfer }.fromStopIndex >= 0)
+    }
+
+    @Test
     fun blockedRouteNamesExcludeSchoolLines() {
         val library = RaptorLibrary(
             listOf(
