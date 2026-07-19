@@ -211,4 +211,6 @@
     <string name="category_nuit">Night bus</string>
     <string name="category_scolaire">School</string>
     <string name="category_remplacement">Replacement bus</string>
+    <string name="itinerary_long_walk_fallback">No direct route right now — closest option, then %s on foot.</string>
+    <string name="decimal_separator">.</string>
 </resources>
