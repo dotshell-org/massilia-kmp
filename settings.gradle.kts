@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Massilia"
 include(":app")
+include(":baselineprofile")
